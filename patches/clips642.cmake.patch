@@ -1,6 +1,6 @@
-diff --color -urN clipsrules-code/branches/64x/clipsjni/CMakeLists.txt clipsrules-code-new/branches/64x/clipsjni/CMakeLists.txt
---- clipsrules-code/branches/64x/clipsjni/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
-+++ clipsrules-code-new/branches/64x/clipsjni/CMakeLists.txt	2024-08-18 03:14:00.503027970 +0200
+diff --color -urN clipsrules-64x/clipsjni/CMakeLists.txt clipsrules-64x-new/clipsjni/CMakeLists.txt
+--- clipsrules-64x/clipsjni/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
++++ clipsrules-64x-new/clipsjni/CMakeLists.txt	2024-08-18 03:47:45.040034352 +0200
 @@ -0,0 +1,314 @@
 +# Find Java
 +find_package(Java REQUIRED)
@@ -316,9 +316,9 @@ diff --color -urN clipsrules-code/branches/64x/clipsjni/CMakeLists.txt clipsrule
 +    GROUP_READ
 +    WORLD_EXECUTE
 +    WORLD_READ)
-diff --color -urN clipsrules-code/branches/64x/CMakeLists.txt clipsrules-code-new/branches/64x/CMakeLists.txt
---- clipsrules-code/branches/64x/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
-+++ clipsrules-code-new/branches/64x/CMakeLists.txt	2024-08-18 03:14:12.392181598 +0200
+diff --color -urN clipsrules-64x/CMakeLists.txt clipsrules-64x-new/CMakeLists.txt
+--- clipsrules-64x/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
++++ clipsrules-64x-new/CMakeLists.txt	2024-08-18 03:47:24.747775311 +0200
 @@ -0,0 +1,38 @@
 +# CLIPS 6.4.1 Console and Library macOS 13.3.1 Ubuntu 22.04 LTS Debian 11.3
 +# Fedora 36 CentOS 9 Mint 20.3
@@ -358,9 +358,9 @@ diff --color -urN clipsrules-code/branches/64x/CMakeLists.txt clipsrules-code-ne
 +add_subdirectory(core)
 +add_subdirectory(clipsjni)
 +install(DIRECTORY examples DESTINATION .)
-diff --color -urN clipsrules-code/branches/64x/core/CMakeLists.txt clipsrules-code-new/branches/64x/core/CMakeLists.txt
---- clipsrules-code/branches/64x/core/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
-+++ clipsrules-code-new/branches/64x/core/CMakeLists.txt	2024-08-18 03:14:10.482156917 +0200
+diff --color -urN clipsrules-64x/core/CMakeLists.txt clipsrules-64x-new/core/CMakeLists.txt
+--- clipsrules-64x/core/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
++++ clipsrules-64x-new/core/CMakeLists.txt	2024-08-18 03:47:31.924866929 +0200
 @@ -0,0 +1,412 @@
 +# Source files
 +set(SOURCES

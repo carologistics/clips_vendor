@@ -7,9 +7,8 @@ find_package(ament_cmake_vendor_package REQUIRED)
 ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE svn
-  VCS_URL https://svn.code.sf.net/p/clipsrules/code/
+  VCS_URL https://svn.code.sf.net/p/clipsrules/code/branches/64x
   PATCHES  patches/clips642.cmake.patch
-  SOURCE_SUBDIR branches/64x/
   GLOBAL_HOOK
 )
 
