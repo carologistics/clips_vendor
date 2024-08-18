@@ -4,11 +4,6 @@ project(clips_vendor)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
-set(EXTRA_CMAKE_FLAGS)
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*|arm.*|ARM.*)")
-  set(EXTRA_CMAKE_FLAGS -DOGRE_SIMD_NEON:BOOL=FALSE  -DOGRE_SIMD_SSE2:BOOL=FALSE)
-endif()
-
 ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE svn

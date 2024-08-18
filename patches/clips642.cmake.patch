@@ -316,18 +316,6 @@ diff --color -urN clipsrules-code/branches/64x/clipsjni/CMakeLists.txt clipsrule
 +    GROUP_READ
 +    WORLD_EXECUTE
 +    WORLD_READ)
-diff --color -urN clipsrules-code/branches/64x/clipsjni/library-src/makefile.lnx clipsrules-code-new/branches/64x/clipsjni/library-src/makefile.lnx
---- clipsrules-code/branches/64x/clipsjni/library-src/makefile.lnx	2024-08-12 16:17:49.234973337 +0200
-+++ clipsrules-code-new/branches/64x/clipsjni/library-src/makefile.lnx	2024-08-18 00:43:51.584669983 +0200
-@@ -26,7 +26,7 @@
- centos : JAVA_HOME = /usr/lib/jvm/java
- centos : libCLIPSJNI.so
- 
--JAVA_INCLUDE = $(JAVA_HOME)/include
-+JAVA_INCLUDE = $(JAVA_HOME)/includd
- JAVA_INCLUDE_OS = $(JAVA_INCLUDE)/linux
- 
- OBJS = agenda.o analysis.o argacces.o bload.o bmathfun.o bsave.o \
 diff --color -urN clipsrules-code/branches/64x/CMakeLists.txt clipsrules-code-new/branches/64x/CMakeLists.txt
 --- clipsrules-code/branches/64x/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
 +++ clipsrules-code-new/branches/64x/CMakeLists.txt	2024-08-18 03:14:12.392181598 +0200
