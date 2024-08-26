@@ -5,30 +5,65 @@ libraries for flexible usage.
 
 Contains core implementation, clipsjni applications and demos as well as the 
 given examples from the svn source repository 
-(https://sourceforge.net/p/clipsrules/code/HEAD/tree/).
+(https://svn.code.sf.net/p/clipsrules/code).
 
 Note that clips can be both compiled with c and c++.
-Here, the main application and library (libclips.so) is built using c++.
-A c shared library is also provided (and used by the clipsjni applications).
+Here, the main application and library *libclips.so* is built using c++.
+A c shared library *libclips_c.so* is also provided (and used by the clipsjni applications).
+Furthermore, a namespaced version *libclips_ns.so* is supplied, which wraps the original files with `namespace clips {}` to minimize conflicts with other libraries and projects.
+
+As clips is written as as a C project there are no namespaces and a lot of preprocessor macros involved, which requires some careful considerations.
+Make sure to read the [Known Issues](#Known-Issues) to avoid some of the related pitfalls.
 
 # Usage
 
+in CMake:
+
+```cmake
 find_package(clips_vendor)
 find_package(clips)
 
-target_link_libraries(<target> PUBLIC Clips::libclips)
-target_link_libraries(<target> PUBLIC ClipsC::libclips_c)
-target_link_libraries(<target> PUBLIC ClipsNS::libclips_ns)
+...
 
+target_link_libraries(<target> PUBLIC Clips::libclips)      # when using c++ compiled library
+target_link_libraries(<target> PUBLIC ClipsC::libclips_c)   # when using c compiled library
+target_link_libraries(<target> PUBLIC ClipsNS::libclips_ns) # wen using namespaced c++ library
+```
 
-# A word of Caution
+in C++:
+```c++
+#include<clips/clips.h>    // when using libclips
 
-Inside of CLIPS headers there are a few #define macros that might mess with other libraries.
-
-Known instances are: LHS and RHS which can interfere with template identifiers in boost/function_types/property_tags.hpp.
-In these cases, undefine the macros after including the clips.h header.
-
-Another issue is the mixing of typedef and enums when working with the namespaced version of cthe library.
-e.g. clips::STRING_BIT is used to get the string bit, but ANY_TYPE_BITS is a typedef expanding to STRING_BIT | VOID_BIT ... which therefore breaks consistency.
-In this scenario it is {using namespace clips ANY_TYPE_BITS
+extern C {
+  #include<clips/clips.h>    // when using libclips_c
 }
+
+#include<clips_ns/clips.h> // when using libclips_ns
+```
+
+# Known Issues
+### Clashes with other Libraries
+As *libclips* and *libclips_c* contain unnamespaced definitions of structs and functions, it is recommended to use `libclips_ns` instead, to prevent accidental clashes with other libraries.
+
+Regardless of the chosen clips library, inside of CLIPS headers there are a `#define` macros that might interfere with other libraries.
+For example, `LHS` and `RHS` macros interfere with template identifiers in `boost/function_types/property_tags.hpp`.
+
+In these cases, undefine the macros after including the `clips.h` header.
+
+### Mixing of Macros and Enums in libclips_ns
+Another issue is the mixing of typedef and enums when working with the namespaced version of the library.
+Looking at this snippet from `constant.h`:
+```c++
+typedef enum
+  {
+   FLOAT_BIT = (1 << 0),
+   INTEGER_BIT = (1 << 1),
+   // ...
+  } CLIPSType;
+
+#define NUMBER_BITS (INTEGER_BIT | FLOAT_BIT)
+```
+With namespace wrapping, the "unscoped" enum requires the usage of a namespace to reference the values, e.g., `clips::FLOAT_BIT`.
+However, the macro `NUMBER_BITS` expands to just `(INTEGER_BIT | FLOAT_BIT)` which is only valid when the expansion is wrapped in the namespace
+
+In this scenario it is necessary to use `using namespace clips;` before using the `NUMBER_BITS`. In particular, `clips::NUMBER_BITS` is **not** valid, neither is just using `NUMBER_BITS` without having declared the usage of namespace clips.
