@@ -469,7 +469,7 @@ diff --color -urN clipsrules-64x/clipsjni/CMakeLists.txt clipsrules-64x-new/clip
 +    WORLD_READ)
 diff --color -urN clipsrules-64x/CMakeLists.txt clipsrules-64x-new/CMakeLists.txt
 --- clipsrules-64x/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
-+++ clipsrules-64x-new/CMakeLists.txt	2024-08-26 21:32:33.753616639 +0200
++++ clipsrules-64x-new/CMakeLists.txt	2024-08-27 00:20:42.717605807 +0200
 @@ -0,0 +1,36 @@
 +# CLIPS 6.4.1 Console and Library macOS 13.3.1 Ubuntu 22.04 LTS Debian 11.3
 +# Fedora 36 CentOS 9 Mint 20.3
@@ -497,7 +497,7 @@ diff --color -urN clipsrules-64x/CMakeLists.txt clipsrules-64x-new/CMakeLists.tx
 +set(CMAKE_CXX_STANDARD 11)
 +set(CMAKE_CXX_STANDARD_REQUIRED ON)
 +
-+set(CLIPS_VERSION 6.4.1)
++set(CLIPS_VERSION 6.4.2)
 +set(CLIPS_SOVERSION 6)
 +
 +# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpermissive -x c++")
