@@ -469,8 +469,8 @@ diff --color -urN clipsrules-64x/clipsjni/CMakeLists.txt clipsrules-64x-new/clip
 +    WORLD_READ)
 diff --color -urN clipsrules-64x/CMakeLists.txt clipsrules-64x-new/CMakeLists.txt
 --- clipsrules-64x/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
-+++ clipsrules-64x-new/CMakeLists.txt	2024-08-18 15:14:16.814724605 +0200
-@@ -0,0 +1,35 @@
++++ clipsrules-64x-new/CMakeLists.txt	2024-08-26 21:32:33.753616639 +0200
+@@ -0,0 +1,36 @@
 +# CLIPS 6.4.1 Console and Library macOS 13.3.1 Ubuntu 22.04 LTS Debian 11.3
 +# Fedora 36 CentOS 9 Mint 20.3
 +
@@ -503,13 +503,23 @@ diff --color -urN clipsrules-64x/CMakeLists.txt clipsrules-64x-new/CMakeLists.tx
 +# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpermissive -x c++")
 +set(CMAKE_CXX_FLAGS "-O3 -g -fno-strict-aliasing -fPIC ${WARNINGS} -fpermissive" ${CMAKE_CXX_FLAGS})
 +set(CMAKE_C_FLAGS "-O3 -g -fno-strict-aliasing -fPIC ${WARNINGS} -fpermissive" ${CMAKE_C_FLAGS})
++find_package(Python3 REQUIRED COMPONENTS Interpreter)
 +add_subdirectory(core)
 +add_subdirectory(clipsjni)
 +install(DIRECTORY examples DESTINATION .)
+diff --color -urN clipsrules-64x/core/clipsConfig.cmake.in clipsrules-64x-new/core/clipsConfig.cmake.in
+--- clipsrules-64x/core/clipsConfig.cmake.in	1970-01-01 01:00:00.000000000 +0100
++++ clipsrules-64x-new/core/clipsConfig.cmake.in	2024-08-26 21:32:34.525625765 +0200
+@@ -0,0 +1,5 @@
++@PACKAGE_INIT@
++
++include("${CMAKE_CURRENT_LIST_DIR}/ClipsTargets.cmake")
++include("${CMAKE_CURRENT_LIST_DIR}/ClipsCTargets.cmake")
++include("${CMAKE_CURRENT_LIST_DIR}/ClipsNSTargets.cmake")
 diff --color -urN clipsrules-64x/core/CMakeLists.txt clipsrules-64x-new/core/CMakeLists.txt
 --- clipsrules-64x/core/CMakeLists.txt	1970-01-01 01:00:00.000000000 +0100
-+++ clipsrules-64x-new/core/CMakeLists.txt	2024-08-18 15:14:15.920713922 +0200
-@@ -0,0 +1,436 @@
++++ clipsrules-64x-new/core/CMakeLists.txt	2024-08-26 23:14:36.514332110 +0200
+@@ -0,0 +1,514 @@
 +# Source files
 +set(SOURCES
 +    agenda.c
@@ -932,7 +942,7 @@ diff --color -urN clipsrules-64x/core/CMakeLists.txt clipsrules-64x-new/core/CMa
 +                                          SOVERSION ${CLIPS_SOVERSION})
 +target_include_directories(
 +  libclips_ns PUBLIC $<BUILD_INTERFACE:${NAMESPACED_SOURCES_DIR}>
-+                  $<INSTALL_INTERFACE:include/clips_ns>)
++                  $<INSTALL_INTERFACE:include>)
 +set_target_properties(libclips_ns PROPERTIES LINKER_LANGUAGE CXX)
 +
 +# Install the shared library
@@ -941,7 +951,7 @@ diff --color -urN clipsrules-64x/core/CMakeLists.txt clipsrules-64x-new/core/CMa
 +  EXPORT export_libclips_ns
 +  LIBRARY DESTINATION lib
 +  ARCHIVE DESTINATION lib
-+  INCLUDES DESTINATION include/clips_ns)
++  INCLUDES DESTINATION include)
 +install(FILES ${NAMESPACED_HEADERS} DESTINATION include/clips_ns)
 +install(EXPORT export_libclips_ns
 +		FILE ClipsNSTargets.cmake
@@ -957,7 +967,7 @@ diff --color -urN clipsrules-64x/core/CMakeLists.txt clipsrules-64x-new/core/CMa
 +                                          SOVERSION ${CLIPS_SOVERSION})
 +target_include_directories(
 +  libclips PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-+                  $<INSTALL_INTERFACE:include/clips>)
++                  $<INSTALL_INTERFACE:include>)
 +set_target_properties(libclips PROPERTIES LINKER_LANGUAGE CXX)
 +
 +# Install the shared library
@@ -966,7 +976,7 @@ diff --color -urN clipsrules-64x/core/CMakeLists.txt clipsrules-64x-new/core/CMa
 +  EXPORT export_libclips
 +  LIBRARY DESTINATION lib
 +  ARCHIVE DESTINATION lib
-+  INCLUDES DESTINATION include/clips)
++  INCLUDES DESTINATION include)
 +install(FILES ${HEADERS} DESTINATION include/clips)
 +
 +
@@ -989,14 +999,14 @@ diff --color -urN clipsrules-64x/core/CMakeLists.txt clipsrules-64x-new/core/CMa
 +                                          SOVERSION ${CLIPS_SOVERSION})
 +target_include_directories(
 +  libclips_c PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-+                  $<INSTALL_INTERFACE:include/clips>)
++                  $<INSTALL_INTERFACE:include>)
 +set_target_properties(libclips_c PROPERTIES LINKER_LANGUAGE C)
 +install(
 +  TARGETS libclips_c
 +  EXPORT export_libclips_c
 +  LIBRARY DESTINATION lib
 +  ARCHIVE DESTINATION lib
-+  INCLUDES DESTINATION include/clips)
++  INCLUDES DESTINATION include)
 +
 +install(EXPORT export_libclips
 +		FILE ClipsTargets.cmake
