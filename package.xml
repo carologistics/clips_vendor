@@ -7,7 +7,7 @@
   <maintainer email="viehmann@kbsg.rwth-aachen.de">Tarik Viehmann</maintainer>
   <license>Public Domain</license>
   <depend>ament_cmake_vendor_package</depend>
-  <depend>java</depend>
+  <depend condition="$BUILD_WITH_JAVA_EXAMPLES != ''"> java</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

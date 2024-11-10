@@ -3,9 +3,7 @@ Wrapper around clips (https://clipsrules.net/) for usage with ROS 2.
 Replaces the make-based original build system by cmake and builds dynamic
 libraries for flexible usage.
 
-Contains core implementation, clipsjni applications and demos as well as the 
-given examples from the svn source repository 
-(https://svn.code.sf.net/p/clipsrules/code).
+Contains core implementation, cli and optionally also the clipsjni applications and demos as well as the given examples from the svn source repository (https://svn.code.sf.net/p/clipsrules/code).
 
 Note that clips can be both compiled with c and c++.
 Here, the main application and library *libclips.so* is built using c++.
@@ -15,7 +13,21 @@ Furthermore, a namespaced version *libclips_ns.so* is supplied, which wraps the 
 As clips is written as as a C project there are no namespaces and a lot of preprocessor macros involved, which requires some careful considerations.
 Make sure to read the [Known Issues](#Known-Issues) to avoid some of the related pitfalls.
 
+# Build Instructions
+
+The optional features are controlled via environment variables:
+ - BUILD_WITH_JAVA_EXAMPLES
+ - BUILD_WITH_CLIPS_EXAMPLES
+
 # Usage
+
+## CLI
+Simply run `clips`:
+```bash
+clips
+```
+
+## Shared Libraries
 
 in CMake:
 
@@ -40,6 +52,20 @@ extern C {
 
 #include<clips_ns/clips.h> // when using libclips_ns
 ```
+
+## Optional java Examples
+The following commands should be available in your path after sourcing:
+```bash
+ clips-animal-deme
+ clips-auto-demo
+ clips-ide
+ clips-router-demo
+ clips-sudoku-demo
+ clips-wine-demo
+```
+
+## Optional CLIPS Examples
+The example files will be located at the installation destination under `opt/clips_vendor/examples`.
 
 # Known Issues
 ### Clashes with other Libraries
