@@ -4,34 +4,38 @@ project(clips_vendor)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
+# Output patch file location
+set(PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/buildsys.patch)
+
+# Clear the patch file if it exists (to avoid appending to old patches)
+file(WRITE ${PATCH_FILE} "")
+
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/empty)
+
+# Generate the patch for the entire buildsys directory by diffing against the empty directory
+execute_process(
+  COMMAND git diff --no-index --dst-prefix= ${CMAKE_CURRENT_BINARY_DIR}/empty buildsys/
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  RESULT_VARIABLE diff_result
+  OUTPUT_VARIABLE raw_patch_output
+  ERROR_VARIABLE patch_error
+)
+if(diff_result EQUAL 1)
+  file(APPEND ${PATCH_FILE} "${raw_patch_output}")
+else()
+  message(FATAL_ERROR "git diff failed: ${patch_error}")
+endif()
+
 ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE svn
   VCS_VERSION 914
   VCS_URL https://svn.code.sf.net/p/clipsrules/code/branches/64x
+  PATCHES ${PATCH_FILE}
   CMAKE_ARGS
     -DBUILD_WITH_JAVA_EXAMPLES=${BUILD_WITH_JAVA_EXAMPLES}
     -DBUILD_WITH_CLIPS_EXAMPLES=${BUILD_WITH_CLIPS_EXAMPLES}
   GLOBAL_HOOK
-)
-
-ExternalProject_Get_property(${PROJECT_NAME} SOURCE_DIR)
-execute_process(
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-  ${CMAKE_CURRENT_SOURCE_DIR}/buildsys/CMakeLists.txt
-  ${SOURCE_DIR}/CMakeLists.txt
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-  ${CMAKE_CURRENT_SOURCE_DIR}/buildsys/add_namespace.py
-  ${SOURCE_DIR}/add_namespace.py
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-  ${CMAKE_CURRENT_SOURCE_DIR}/buildsys/core/CMakeLists.txt
-  ${SOURCE_DIR}/core/CMakeLists.txt
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-  ${CMAKE_CURRENT_SOURCE_DIR}/buildsys/core/clipsConfig.cmake.in
-  ${SOURCE_DIR}/core/clipsConfig.cmake.in
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-  ${CMAKE_CURRENT_SOURCE_DIR}/buildsys/clipsjni/CMakeLists.txt
-  ${SOURCE_DIR}/clipsjni/CMakeLists.txt
 )
 
 if(BUILD_TESTING)
