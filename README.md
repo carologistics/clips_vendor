@@ -10,14 +10,19 @@ Here, the main application and library *libclips.so* is built using c++.
 A c shared library *libclips_c.so* is also provided (and used by the clipsjni applications).
 Furthermore, a namespaced version *libclips_ns.so* is supplied, which wraps the original files with `namespace clips {}` to minimize conflicts with other libraries and projects.
 
-As clips is written as as a C project there are no namespaces and a lot of preprocessor macros involved, which requires some careful considerations.
+As clips is written as as a C project there are no namespaces and a lot of preprocessor macros involved, which require some careful considerations.
 Make sure to read the [Known Issues](#Known-Issues) to avoid some of the related pitfalls.
 
 # Build Instructions
 
-The optional features are controlled via environment variables:
+The optional features are controlled via CMake variables:
  - BUILD_WITH_JAVA_EXAMPLES
  - BUILD_WITH_CLIPS_EXAMPLES
+
+Per default these examples will not be added, to build them from source, simply pass the corresponding cmake args as shown below:
+```bash
+colcon build --cmake-args -DBUILD_WITH_JAVA_EXAMPLES=true -DBUILD_WITH_CLIPS_EXAMPLES=true
+```
 
 # Usage
 
