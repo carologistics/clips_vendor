@@ -5,7 +5,7 @@
   <version>6.4.2</version>
   <description>Vendor package for the CLIPS rule based production system</description>
   <maintainer email="viehmann@kbsg.rwth-aachen.de">Tarik Viehmann</maintainer>
-  <license>Public Domain</license>
+  <license>MIT-0</license>
   <depend>ament_cmake_vendor_package</depend>
   <depend condition="$BUILD_WITH_JAVA_EXAMPLES != ''"> java</depend>
 
