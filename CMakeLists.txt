@@ -29,7 +29,7 @@ endif()
 ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE svn
-  VCS_VERSION 914
+  VCS_VERSION 925
   VCS_URL https://svn.code.sf.net/p/clipsrules/code/branches/64x
   PATCHES ${PATCH_FILE}
   CMAKE_ARGS
