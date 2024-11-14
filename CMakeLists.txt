@@ -26,6 +26,21 @@ else()
   message(FATAL_ERROR "git diff failed: ${patch_error}")
 endif()
 
+set(CLIPS_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/src/${PROJECT_NAME})
+
+if(EXISTS ${CLIPS_SRC_DIR})
+  message(STATUS "Directory exists: ${DIRECTORY_TO_CHECK}, reverse patch ...")
+
+  # Apply the reverse patch silently in case it is still floating around
+  execute_process(
+    COMMAND git apply --no-index -R ${PATCH_FILE}
+    WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+    RESULT_VARIABLE patch_result
+    OUTPUT_QUIET
+    ERROR_QUIET
+  )
+endif()
+
 ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE svn
