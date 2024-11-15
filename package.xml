@@ -8,7 +8,7 @@
   <maintainer email="tim.wendt@alumni.fh-aachen.de">Tim Wendt</maintainer>
   <license>MIT-0</license> <!-- License of both CLIPS (Copyright 2023 Secret Society Software, LLC) and this package -->
   <depend>ament_cmake_vendor_package</depend>
-  <depend>subversion</depend>
+  <depend>unzip</depend>
   <depend condition="$BUILD_WITH_JAVA_EXAMPLES != ''"> java</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

@@ -399,7 +399,7 @@ foreach(source ${SOURCES})
 	list(APPEND NAMESPACED_SOURCES "${NAMESPACED_SOURCES_DIR}/${source}")
 endforeach()
 
-set(PREPROCESS_SCRIPT "${CMAKE_SOURCE_DIR}/add_namespace.py")
+set(PREPROCESS_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../add_namespace.py")
 
 # Step 1: Create preprocessed directory
 file(MAKE_DIRECTORY ${NAMESPACED_SOURCES_DIR})
