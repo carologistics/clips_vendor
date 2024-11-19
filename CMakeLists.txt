@@ -16,9 +16,17 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/empty)
 
 # Generate entry point that is dependent on the actual CLIPS_SOURCE dir name
 set(TOP_DIR_CMAKE_FILE ${CMAKE_CURRENT_BINARY_DIR}/CMakeLists.txt)
+set(CORE_CAST_C_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/core_cast_c.patch)
 configure_file(
     ${CMAKE_SOURCE_DIR}/toplevel.buildsys.CMakeLists.txt.in
     ${TOP_DIR_CMAKE_FILE}
+    @ONLY
+)
+
+set(BRANCH 64x)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/core_cast_c.patch.in
+    ${CORE_CAST_C_PATCH_FILE}
     @ONLY
 )
 
@@ -57,19 +65,23 @@ if(EXISTS ${CLIPS_SRC_DIR})
     COMMAND git apply --no-index -R ${PATCH_FILE}
     WORKING_DIRECTORY ${CLIPS_SRC_DIR}
     RESULT_VARIABLE patch_result
-    OUTPUT_VARIABLE patch_output
-    ERROR_VARIABLE patch_error
+    OUTPUT_QUIET
+    ERROR_QUIET
   )
-  message(STATUS "Patch result: ${patch_result}")
-  message(STATUS "Patch output: ${patch_output}")
-  message(STATUS "Patch error: ${patch_error}")
+  execute_process(
+    COMMAND git apply --no-index -R ${CORE_CAST_C_PATCH_FILE}
+    WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+    RESULT_VARIABLE patch_result
+    OUTPUT_QUIET
+    ERROR_QUIET
+  )
 endif()
 
 ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE zip
   VCS_URL https://sourceforge.net/code-snapshots/svn/c/cl/clipsrules/code/${CLIPS_SOURCE}.zip
-  PATCHES ${PATCH_FILE}
+  PATCHES ${PATCH_FILE} ${CORE_CAST_C_PATCH_FILE}
   CMAKE_ARGS
     -DBUILD_WITH_JAVA_EXAMPLES=${BUILD_WITH_JAVA_EXAMPLES}
     -DBUILD_WITH_CLIPS_EXAMPLES=${BUILD_WITH_CLIPS_EXAMPLES}
