@@ -1,0 +1,12 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCHES@/core/ b/@CLIPS_SOURCE@/branches/@BRANCHES@/core/
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/textpro.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/textpro.c
+@@ -711,7 +711,7 @@
+     if (length == 0)
+       { return TP_INVALID_DELIMITER_STRING; }
+       
+-    theString = genalloc(theEnv,length+1);
++    theString = (char *) genalloc(theEnv,length+1);
+     theString[0] = '\0';
+     strncat(theString,subName,length);
+ 

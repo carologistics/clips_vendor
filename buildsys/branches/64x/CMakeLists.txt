@@ -5,11 +5,11 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
       "-Wall -Wundef -Wpointer-arith -Wshadow -Wstrict-aliasing \
                   -Winline -Wmissing-declarations -Wredundant-decls \
                   -Wmissing-prototypes -Wnested-externs -Wstrict-prototypes \
-                  -Waggregate-return -Wno-implicit -Wno-write-strings -Wno-invalid-cast")
+                  -Waggregate-return -Wno-implicit -Wno-write-strings")
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   set(CLIPS_OS "LINUX")
   set(WARNINGS "-Wall -Wundef -Wpointer-arith -Wshadow -Wstrict-aliasing \
-                -Winline -Wredundant-decls -Waggregate-return -fpermissive -Wno-write-strings -Wno-invalid-cast")
+                -Winline -Wredundant-decls -Waggregate-return -fpermissive -Wno-write-strings")
 endif()
 
 # Compilation flags
