@@ -4,8 +4,8 @@ project(clips_vendor)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
-set(CLIPS_REVISION 925)
-set(CLIPS_SOURCE clipsrules-code-r${CLIPS_REVISION})
+set(CLIPS_REVISION r925)
+set(CLIPS_SOURCE clipsrules-code-${CLIPS_REVISION})
 set(CLIPS_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/src/${PROJECT_NAME})
 
 # Patch file that applies the whole cmake-based buildsys
@@ -80,7 +80,7 @@ endif()
 ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE zip
-  VCS_URL https://sourceforge.net/code-snapshots/svn/c/cl/clipsrules/code/${CLIPS_SOURCE}.zip
+  VCS_URL https://raw.githubusercontent.com/carologistics/clips_vendor/${CLIPS_REVISION}/${CLIPS_SOURCE}.zip
   PATCHES ${PATCH_FILE} ${CORE_CAST_C_PATCH_FILE}
   CMAKE_ARGS
     -DBUILD_WITH_JAVA_EXAMPLES=${BUILD_WITH_JAVA_EXAMPLES}
