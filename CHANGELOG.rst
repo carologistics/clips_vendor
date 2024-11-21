@@ -2,8 +2,8 @@
 Changelog for package clips_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+6.4.3 (2024-11-21)
+------------------
 * CMakeLists: fetch zip from github
   Soruceforge snapshots are created on-demand and downloading through
   CMake will fail if the snapshot is not existing already.

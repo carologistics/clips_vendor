@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>clips_vendor</name>
-  <version>6.4.2</version>
+  <version>6.4.3</version>
   <description>Vendor package for the CLIPS rule based production system</description>
   <maintainer email="viehmann@kbsg.rwth-aachen.de">Tarik Viehmann</maintainer>
   <maintainer email="tim.wendt@alumni.fh-aachen.de">Tim Wendt</maintainer>
