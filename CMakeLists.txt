@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(clips_vendor)
+message(WARNING "Custom Log: Starting the build for project 'clips_vendor'.")
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
