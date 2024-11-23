@@ -30,14 +30,21 @@ configure_file(
     @ONLY
 )
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/buildsys/${CLIPS_SOURCE})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/buildsys/ DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/buildsys/${CLIPS_SOURCE})
+
 # Generate the patch for the entire buildsys directory by diffing against the empty directory
 execute_process(
-  COMMAND git diff --no-index --dst-prefix=b/${CLIPS_SOURCE}/ ${CMAKE_CURRENT_BINARY_DIR}/empty ""
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/buildsys
+  COMMAND git diff --no-index --dst-prefix= empty buildsys
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   RESULT_VARIABLE diff_result
   OUTPUT_VARIABLE raw_patch_output
   ERROR_VARIABLE patch_error
+  ERROR_STRIP_TRAILING_WHITESPACE
 )
+if (NOT patch_error STREQUAL "")
+  message(FATAL_ERROR "Error occurred: ${patch_error}")
+endif()
 if(diff_result EQUAL 1)
   file(APPEND ${PATCH_FILE} "${raw_patch_output}")
 else()
