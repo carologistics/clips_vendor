@@ -1,4 +1,4 @@
-diff --git a/@CLIPS_SOURCE@/branches/@BRANCHES@/core/ b/@CLIPS_SOURCE@/branches/@BRANCHES@/core/
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/
 --- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/textpro.c
 +++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/textpro.c
 @@ -711,7 +711,7 @@
