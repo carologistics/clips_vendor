@@ -1,0 +1,310 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctbsc.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctbsc.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctbsc.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctbsc.c
+@@ -198,7 +198,8 @@ bool Undeffacts(
+   Environment *allEnv)
+   {
+    Environment *theEnv;
+-   
++   DeffactsCallbackFunctionItem *deffactsCallbackFunction;
++
+    if (theDeffacts == NULL)
+      {
+       theEnv = allEnv;
+@@ -207,6 +208,19 @@ bool Undeffacts(
+    else
+      {
+       theEnv = theDeffacts->header.env;
++      if (!ConstructData(theEnv)->RedefineInProgress)
++        {
++         /*===================================*/
++         /* Call deffacts retract functions.  */
++         /*===================================*/
++
++         for (deffactsCallbackFunction = DeffactsData(theEnv)->ListOfDeffactsRetractFunctions;
++              deffactsCallbackFunction != NULL;
++              deffactsCallbackFunction = deffactsCallbackFunction->next)
++           {
++            (*deffactsCallbackFunction->func)(theEnv,theDeffacts,deffactsCallbackFunction->context);
++           }
++        }
+       return Undefconstruct(theEnv,&theDeffacts->header,DeffactsData(theEnv)->DeffactsConstruct);
+      }
+   }
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.c
+@@ -123,6 +123,8 @@ static void DeallocateDeffactsData(
+ #if BLOAD || BLOAD_AND_BSAVE
+    if (Bloaded(theEnv)) return;
+ #endif
++   DeallocateDeffactsCallbackFunctionCallList(theEnv,DeffactsData(theEnv)->ListOfDeffactsAssertFunctions);
++   DeallocateDeffactsCallbackFunctionCallList(theEnv,DeffactsData(theEnv)->ListOfDeffactsRetractFunctions);
+ 
+    DoForAllConstructs(theEnv,
+                       DestroyDeffactsAction,
+@@ -358,6 +360,185 @@ const char *DeffactsPPForm(
+    return GetConstructPPForm(&theDeffacts->header);
+   }
+ 
++/**********************************************/
++/* AddDeffactsAssertFunction: Adds a function */
++/*   to the ListOfDeffactsAssertFunctions.    */
++/**********************************************/
++bool AddDeffactsAssertFunction(
++  Environment *theEnv,
++  const char *name,
++  DeffactsCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DeffactsData(theEnv)->ListOfDeffactsAssertFunctions =
++      AddDeffactsCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                            DeffactsData(theEnv)->ListOfDeffactsAssertFunctions,context);
++
++   return true;
++  }
++
++/***************************************************/
++/* RemoveDeffactsAssertFunction: Removes a function */
++/*   from the ListOfDeffactsAssertFunctions.        */
++/***************************************************/
++bool RemoveDeffactsAssertFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DeffactsData(theEnv)->ListOfDeffactsAssertFunctions =
++      RemoveDeffactsCallbackFunctionFromCallList(theEnv,name,
++                                                 DeffactsData(theEnv)->ListOfDeffactsAssertFunctions,&found);
++
++   return found;
++  }
++
++/***********************************************/
++/* AddDeffactsRetractFunction: Adds a function */
++/*   to the ListOfDeffactsRetractFunctions.    */
++/***********************************************/
++bool AddDeffactsRetractFunction(
++  Environment *theEnv,
++  const char *name,
++  DeffactsCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DeffactsData(theEnv)->ListOfDeffactsRetractFunctions =
++      AddDeffactsCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                            DeffactsData(theEnv)->ListOfDeffactsRetractFunctions,context);
++
++   return true;
++  }
++
++/****************************************************/
++/* RemoveDeffactsRetractFunction: Removes a function */
++/*   from the ListOfDeffactsRetractFunctions.        */
++/****************************************************/
++bool RemoveDeffactsRetractFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DeffactsData(theEnv)->ListOfDeffactsRetractFunctions =
++      RemoveDeffactsCallbackFunctionFromCallList(theEnv,name,
++                                                 DeffactsData(theEnv)->ListOfDeffactsRetractFunctions,&found);
++
++   return found;
++  }
++
++/*********************************************************/
++/* AddDeffactsCallbackFunctionToCallList: Adds a function */
++/*   to a deffacts callback function list.                */
++/*********************************************************/
++DeffactsCallbackFunctionItem *AddDeffactsCallbackFunctionToCallList(
++  Environment *theEnv,
++  const char *name,
++  int priority,
++  DeffactsCallbackFunction *func,
++  DeffactsCallbackFunctionItem *head,
++  void *context)
++  {
++   DeffactsCallbackFunctionItem *newPtr, *currentPtr, *lastPtr = NULL;
++   char *nameCopy;
++
++   newPtr = get_struct(theEnv,deffactsCallbackFunctionItem);
++
++   nameCopy = (char *) genalloc(theEnv,strlen(name) + 1);
++   genstrcpy(nameCopy,name);
++   newPtr->name = nameCopy;
++
++   newPtr->func = func;
++   newPtr->priority = priority;
++   newPtr->context = context;
++
++   if (head == NULL)
++     {
++      newPtr->next = NULL;
++      return newPtr;
++     }
++
++   currentPtr = head;
++   while ((currentPtr != NULL) ? (priority < currentPtr->priority) : false)
++     {
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   if (lastPtr == NULL)
++     {
++      newPtr->next = head;
++      head = newPtr;
++     }
++   else
++     {
++      newPtr->next = currentPtr;
++      lastPtr->next = newPtr;
++     }
++
++   return head;
++  }
++
++/*****************************************************************/
++/* RemoveDeffactsCallbackFunctionFromCallList: Removes a         */
++/*   function from a deffacts callback function list.            */
++/*****************************************************************/
++DeffactsCallbackFunctionItem *RemoveDeffactsCallbackFunctionFromCallList(
++  Environment *theEnv,
++  const char *name,
++  DeffactsCallbackFunctionItem *head,
++  bool *found)
++  {
++   DeffactsCallbackFunctionItem *currentPtr, *lastPtr;
++
++   *found = false;
++   lastPtr = NULL;
++   currentPtr = head;
++
++   while (currentPtr != NULL)
++     {
++      if (strcmp(name,currentPtr->name) == 0)
++        {
++         *found = true;
++         if (lastPtr == NULL)
++           { head = currentPtr->next; }
++         else
++           { lastPtr->next = currentPtr->next; }
++
++         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
++         rtn_struct(theEnv,deffactsCallbackFunctionItem,currentPtr);
++         return head;
++        }
++
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   return head;
++  }
++
++/***********************************************************/
++/* DeallocateDeffactsCallbackFunctionCallList: Removes all */
++/*   functions from a list of deffacts callback functions. */
++/***********************************************************/
++void DeallocateDeffactsCallbackFunctionCallList(
++  Environment *theEnv,
++  DeffactsCallbackFunctionItem *theList)
++  {
++   DeffactsCallbackFunctionItem *tmpPtr, *nextPtr;
++
++   tmpPtr = theList;
++   while (tmpPtr != NULL)
++     {
++      nextPtr = tmpPtr->next;
++      genfree(theEnv,(void *) tmpPtr->name,strlen(tmpPtr->name) + 1);
++      rtn_struct(theEnv,deffactsCallbackFunctionItem,tmpPtr);
++      tmpPtr = nextPtr;
++     }
++  }
+ 
+ #endif /* DEFFACTS_CONSTRUCT */
+ 
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.h b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.h
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.h
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctdef.h
+@@ -53,6 +53,18 @@
+ 
+ typedef struct deffacts Deffacts;
+ 
++typedef struct deffactsCallbackFunctionItem DeffactsCallbackFunctionItem;
++typedef void DeffactsCallbackFunction(Environment *,Deffacts *,void *);
++
++struct deffactsCallbackFunctionItem
++  {
++   const char *name;
++   DeffactsCallbackFunction *func;
++   int priority;
++   DeffactsCallbackFunctionItem *next;
++   void *context;
++  };
++
+ #include "constrct.h"
+ #include "conscomp.h"
+ #include "cstrccom.h"
+@@ -70,6 +82,8 @@ struct deffactsData
+ #if CONSTRUCT_COMPILER && (! RUN_TIME)
+    struct CodeGeneratorItem *DeffactsCodeItem;
+ #endif
++   DeffactsCallbackFunctionItem *ListOfDeffactsAssertFunctions;
++   DeffactsCallbackFunctionItem *ListOfDeffactsRetractFunctions;
+   };
+ 
+ struct deffacts
+@@ -98,6 +112,17 @@ struct deffactsModule
+ #if RUN_TIME
+    void                           DeffactsRunTimeInitialize(Environment *);
+ #endif
++   bool                           AddDeffactsAssertFunction(Environment *,const char *,
++                                                            DeffactsCallbackFunction *,int,void *);
++   bool                           RemoveDeffactsAssertFunction(Environment *,const char *);
++   bool                           AddDeffactsRetractFunction(Environment *,const char *,
++                                                             DeffactsCallbackFunction *,int,void *);
++   bool                           RemoveDeffactsRetractFunction(Environment *,const char *);
++   DeffactsCallbackFunctionItem  *AddDeffactsCallbackFunctionToCallList(Environment *,const char *,int,
++                                                                        DeffactsCallbackFunction *,DeffactsCallbackFunctionItem *,void *);
++   DeffactsCallbackFunctionItem  *RemoveDeffactsCallbackFunctionFromCallList(Environment *,const char *,
++                                                                             DeffactsCallbackFunctionItem *,bool *);
++   void                           DeallocateDeffactsCallbackFunctionCallList(Environment *,DeffactsCallbackFunctionItem *);
+ 
+ #endif /* _H_dffctdef */
+ 
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctpsr.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctpsr.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctpsr.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffctpsr.c
+@@ -72,6 +72,7 @@ bool ParseDeffacts(
+   {
+ #if (! RUN_TIME) && (! BLOAD_ONLY)
+    CLIPSLexeme *deffactsName;
++   DeffactsCallbackFunctionItem *deffactsCallbackFunction;
+    struct expr *temp;
+    Deffacts *newDeffacts;
+    bool deffactsError;
+@@ -165,6 +166,18 @@ bool ParseDeffacts(
+ 
+    AddConstructToModule(&newDeffacts->header);
+ 
++   /*==================================*/
++   /* Call deffacts assert functions.  */
++   /*==================================*/
++
++   for (deffactsCallbackFunction = DeffactsData(theEnv)->ListOfDeffactsAssertFunctions;
++        deffactsCallbackFunction != NULL;
++        deffactsCallbackFunction = deffactsCallbackFunction->next)
++     {
++      (*deffactsCallbackFunction->func)(theEnv,newDeffacts,
++                                        deffactsCallbackFunction->context);
++     }
++
+ #endif /* (! RUN_TIME) && (! BLOAD_ONLY) */
+ 
+    /*================================================================*/

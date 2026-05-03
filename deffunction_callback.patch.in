@@ -1,0 +1,335 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.c
+@@ -273,6 +273,8 @@ static void DeallocateDeffunctionData(
+ #if BLOAD || BLOAD_AND_BSAVE
+    if (Bloaded(theEnv)) return;
+ #endif
++   DeallocateDeffunctionCallbackFunctionCallList(theEnv,DeffunctionData(theEnv)->ListOfDeffunctionAssertFunctions);
++   DeallocateDeffunctionCallbackFunctionCallList(theEnv,DeffunctionData(theEnv)->ListOfDeffunctionRetractFunctions);
+ 
+    DoForAllConstructs(theEnv,
+                       DestroyDeffunctionAction,
+@@ -414,6 +416,7 @@ bool Undeffunction(
+ #else
+    Environment *theEnv;
+    bool success;
++   DeffunctionCallbackFunctionItem *deffunctionCallbackFunction;
+    GCBlock gcb;
+   
+    if (theDeffunction == NULL)
+@@ -439,7 +442,15 @@ bool Undeffunction(
+       GCBlockEnd(theEnv,&gcb);
+       return false;
+      }
+-     
++
++   for (deffunctionCallbackFunction = DeffunctionData(theEnv)->ListOfDeffunctionRetractFunctions;
++        deffunctionCallbackFunction != NULL;
++        deffunctionCallbackFunction = deffunctionCallbackFunction->next)
++     {
++      (*deffunctionCallbackFunction->func)(theEnv,theDeffunction,
++                                           deffunctionCallbackFunction->context);
++     }
++
+    RemoveConstructFromModule(theEnv,&theDeffunction->header);
+    RemoveDeffunction(theEnv,theDeffunction);
+    GCBlockEnd(theEnv,&gcb);
+@@ -512,6 +523,188 @@ void RemoveDeffunction(
+    rtn_struct(theEnv,deffunction,theDeffunction);
+   }
+ 
++/******************************************************/
++/* AddDeffunctionAssertFunction: Adds a function      */
++/*   to the ListOfDeffunctionAssertFunctions.         */
++/******************************************************/
++bool AddDeffunctionAssertFunction(
++  Environment *theEnv,
++  const char *name,
++  DeffunctionCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DeffunctionData(theEnv)->ListOfDeffunctionAssertFunctions =
++      AddDeffunctionCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                               DeffunctionData(theEnv)->ListOfDeffunctionAssertFunctions,context);
++
++   return true;
++  }
++
++/*********************************************************/
++/* RemoveDeffunctionAssertFunction: Removes a function    */
++/*   from the ListOfDeffunctionAssertFunctions.           */
++/*********************************************************/
++bool RemoveDeffunctionAssertFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DeffunctionData(theEnv)->ListOfDeffunctionAssertFunctions =
++      RemoveDeffunctionCallbackFunctionFromCallList(theEnv,name,
++                                                    DeffunctionData(theEnv)->ListOfDeffunctionAssertFunctions,&found);
++
++   return found;
++  }
++
++/*******************************************************/
++/* AddDeffunctionRetractFunction: Adds a function      */
++/*   to the ListOfDeffunctionRetractFunctions.         */
++/*******************************************************/
++bool AddDeffunctionRetractFunction(
++  Environment *theEnv,
++  const char *name,
++  DeffunctionCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DeffunctionData(theEnv)->ListOfDeffunctionRetractFunctions =
++      AddDeffunctionCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                               DeffunctionData(theEnv)->ListOfDeffunctionRetractFunctions,context);
++
++   return true;
++  }
++
++/**********************************************************/
++/* RemoveDeffunctionRetractFunction: Removes a function   */
++/*   from the ListOfDeffunctionRetractFunctions.          */
++/**********************************************************/
++bool RemoveDeffunctionRetractFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DeffunctionData(theEnv)->ListOfDeffunctionRetractFunctions =
++      RemoveDeffunctionCallbackFunctionFromCallList(theEnv,name,
++                                                    DeffunctionData(theEnv)->ListOfDeffunctionRetractFunctions,&found);
++
++   return found;
++  }
++
++/************************************************************/
++/* AddDeffunctionCallbackFunctionToCallList: Adds a         */
++/*   function to a deffunction callback function list.      */
++/************************************************************/
++DeffunctionCallbackFunctionItem *AddDeffunctionCallbackFunctionToCallList(
++  Environment *theEnv,
++  const char *name,
++  int priority,
++  DeffunctionCallbackFunction *func,
++  DeffunctionCallbackFunctionItem *head,
++  void *context)
++  {
++   DeffunctionCallbackFunctionItem *newPtr, *currentPtr, *lastPtr = NULL;
++   char *nameCopy;
++
++   newPtr = get_struct(theEnv,deffunctionCallbackFunctionItem);
++
++   nameCopy = (char *) genalloc(theEnv,strlen(name) + 1);
++   genstrcpy(nameCopy,name);
++   newPtr->name = nameCopy;
++
++   newPtr->func = func;
++   newPtr->priority = priority;
++   newPtr->context = context;
++
++   if (head == NULL)
++     {
++      newPtr->next = NULL;
++      return newPtr;
++     }
++
++   currentPtr = head;
++   while ((currentPtr != NULL) ? (priority < currentPtr->priority) : false)
++     {
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   if (lastPtr == NULL)
++     {
++      newPtr->next = head;
++      head = newPtr;
++     }
++   else
++     {
++      newPtr->next = currentPtr;
++      lastPtr->next = newPtr;
++     }
++
++   return head;
++  }
++
++/*****************************************************************/
++/* RemoveDeffunctionCallbackFunctionFromCallList: Removes a      */
++/*   function from a deffunction callback function list.         */
++/*****************************************************************/
++DeffunctionCallbackFunctionItem *RemoveDeffunctionCallbackFunctionFromCallList(
++  Environment *theEnv,
++  const char *name,
++  DeffunctionCallbackFunctionItem *head,
++  bool *found)
++  {
++   DeffunctionCallbackFunctionItem *currentPtr, *lastPtr;
++
++   *found = false;
++   lastPtr = NULL;
++   currentPtr = head;
++
++   while (currentPtr != NULL)
++     {
++      if (strcmp(name,currentPtr->name) == 0)
++        {
++         *found = true;
++         if (lastPtr == NULL)
++           { head = currentPtr->next; }
++         else
++           { lastPtr->next = currentPtr->next; }
++
++         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
++         rtn_struct(theEnv,deffunctionCallbackFunctionItem,currentPtr);
++         return head;
++        }
++
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   return head;
++  }
++
++/**************************************************************/
++/* DeallocateDeffunctionCallbackFunctionCallList: Removes all */
++/*   functions from a list of deffunction callback functions. */
++/**************************************************************/
++void DeallocateDeffunctionCallbackFunctionCallList(
++  Environment *theEnv,
++  DeffunctionCallbackFunctionItem *theList)
++  {
++   DeffunctionCallbackFunctionItem *tmpPtr, *nextPtr;
++
++   tmpPtr = theList;
++   while (tmpPtr != NULL)
++     {
++      nextPtr = tmpPtr->next;
++      genfree(theEnv,(void *) tmpPtr->name,strlen(tmpPtr->name) + 1);
++      rtn_struct(theEnv,deffunctionCallbackFunctionItem,tmpPtr);
++      tmpPtr = nextPtr;
++     }
++  }
++
++
++
+ #endif
+ 
+ /********************************************************
+@@ -899,6 +1092,7 @@ static bool RemoveAllDeffunctions(
+   {
+    Deffunction *dptr, *dtmp;
+    unsigned oldbusy;
++   DeffunctionCallbackFunctionItem *deffunctionCallbackFunction;
+    bool success = true;
+ 
+ #if BLOAD || BLOAD_AND_BSAVE
+@@ -944,6 +1138,13 @@ static bool RemoveAllDeffunctions(
+            }
+          else
+            {
++            for (deffunctionCallbackFunction = DeffunctionData(theEnv)->ListOfDeffunctionRetractFunctions;
++                 deffunctionCallbackFunction != NULL;
++                 deffunctionCallbackFunction = deffunctionCallbackFunction->next)
++              {
++               (*deffunctionCallbackFunction->func)(theEnv,dtmp,
++                                                    deffunctionCallbackFunction->context);
++              }
+             RemoveConstructFromModule(theEnv,&dtmp->header);
+             RemoveDeffunction(theEnv,dtmp);
+            }
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.h b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.h
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.h
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxfun.h
+@@ -70,6 +70,7 @@
+ #define _H_dffnxfun
+ 
+ typedef struct deffunction Deffunction;
++typedef struct deffunctionCallbackFunctionItem DeffunctionCallbackFunctionItem;
+ typedef struct deffunctionModuleData DeffunctionModuleData;
+ 
+ #include "entities.h"
+@@ -77,6 +78,17 @@ typedef struct deffunctionModuleData DeffunctionModuleData;
+ #include "constrct.h"
+ #include "evaluatn.h"
+ 
++typedef void DeffunctionCallbackFunction(Environment *,Deffunction *,void *);
++
++struct deffunctionCallbackFunctionItem
++  {
++   const char *name;
++   DeffunctionCallbackFunction *func;
++   int priority;
++   DeffunctionCallbackFunctionItem *next;
++   void *context;
++  };
++
+ struct deffunctionModuleData
+   {
+    struct defmoduleItemHeader header;
+@@ -106,6 +118,8 @@ struct deffunctionData
+ #endif
+    struct CodeGeneratorItem *DeffunctionCodeItem;
+    Deffunction *ExecutingDeffunction;
++   DeffunctionCallbackFunctionItem *ListOfDeffunctionAssertFunctions;
++   DeffunctionCallbackFunctionItem *ListOfDeffunctionRetractFunctions;
+   };
+ 
+ #define DeffunctionData(theEnv) ((struct deffunctionData *) GetEnvironmentData(theEnv,DEFFUNCTION_DATA))
+@@ -145,6 +159,15 @@ struct deffunctionData
+ #if RUN_TIME
+    void                           DeffunctionRunTimeInitialize(Environment *);
+ #endif
++   bool                           AddDeffunctionAssertFunction(Environment *,const char *,
++                                                               DeffunctionCallbackFunction *,int,void *);
++   bool                           RemoveDeffunctionAssertFunction(Environment *,const char *);
++   bool                           AddDeffunctionRetractFunction(Environment *,const char *,
++                                                                DeffunctionCallbackFunction *,int,void *);
++   bool                           RemoveDeffunctionRetractFunction(Environment *,const char *);
++   DeffunctionCallbackFunctionItem *AddDeffunctionCallbackFunctionToCallList(Environment *,const char *,int,DeffunctionCallbackFunction*,DeffunctionCallbackFunctionItem *,void *);
++   DeffunctionCallbackFunctionItem *RemoveDeffunctionCallbackFunctionFromCallList(Environment *,const char *,DeffunctionCallbackFunctionItem *,bool *);
++   void                           DeallocateDeffunctionCallbackFunctionCallList(Environment *,DeffunctionCallbackFunctionItem *);
+ 
+ #endif /* _H_dffnxfun */
+ 
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxpsr.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxpsr.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxpsr.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/dffnxpsr.c
+@@ -127,6 +127,7 @@ bool ParseDeffunction(
+    bool overwrite = false;
+    unsigned short owMin = 0, owMax = 0;
+    Deffunction *dptr;
++   DeffunctionCallbackFunctionItem *deffunctionCallbackFunction;
+    struct token inputToken;
+    
+    SetPPBufferStatus(theEnv,true);
+@@ -284,7 +285,20 @@ bool ParseDeffunction(
+    /* Add the deffunction. */
+    /*======================*/
+ 
+-   AddDeffunction(theEnv,deffunctionName,actions,min,max,lvars,false);
++   dptr = AddDeffunction(theEnv,deffunctionName,actions,min,max,lvars,false);
++
++   /*=================================*/
++   /* Call deffunction assert         */
++   /* functions for new definitions.  */
++   /*=================================*/
++
++   for (deffunctionCallbackFunction = DeffunctionData(theEnv)->ListOfDeffunctionAssertFunctions;
++        deffunctionCallbackFunction != NULL;
++        deffunctionCallbackFunction = deffunctionCallbackFunction->next)
++     {
++      (*deffunctionCallbackFunction->func)(theEnv,dptr,
++                                           deffunctionCallbackFunction->context);
++     }
+ 
+    ReturnExpression(theEnv,parameterList);
+ 

@@ -1,0 +1,278 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.c
+@@ -142,6 +142,8 @@ static void DeallocateConstructData(
+    DeallocateVoidCallList(theEnv,ConstructData(theEnv)->ListOfResetFunctions);
+    DeallocateVoidCallList(theEnv,ConstructData(theEnv)->ListOfClearFunctions);
+    DeallocateBoolCallList(theEnv,ConstructData(theEnv)->ListOfClearReadyFunctions);
++   DeallocateRedefineCallList(theEnv,ConstructData(theEnv)->ListOfRedefineFunctions);
++
+ 
+ #if (! RUN_TIME) && (! BLOAD_ONLY)
+    if (ConstructData(theEnv)->ErrorString != NULL)
+@@ -826,6 +828,151 @@ bool RemoveClearFunction(
+    return false;
+   }
+ 
++/******************************************************/
++/* AddRedefineCallbackFunction: Adds a function to    */
++/*   ListOfRedefineFunctions.                         */
++/******************************************************/
++bool AddRedefineCallbackFunction(
++  Environment *theEnv,
++  const char *name,
++  RedefineCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   ConstructData(theEnv)->ListOfRedefineFunctions =
++      AddRedefineFunctionToCallList(theEnv,name,priority,functionPtr,
++                                    ConstructData(theEnv)->ListOfRedefineFunctions,
++                                    context);
++   return true;
++  }
++
++/**************************************************************/
++/* RemoveRedefineCallbackFunction: Removes a function from    */
++/*   ListOfRedefineFunctions.                                 */
++/**************************************************************/
++bool RemoveRedefineCallbackFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   ConstructData(theEnv)->ListOfRedefineFunctions =
++      RemoveRedefineFunctionFromCallList(theEnv,name,
++                                         ConstructData(theEnv)->ListOfRedefineFunctions,
++                                         &found);
++   return found;
++  }
++
++/***************************************************************/
++/* AddRedefineFunctionToCallList: Adds a function to a        */
++/*   list of construct redefinition callback functions.       */
++/***************************************************************/
++RedefineCallbackFunctionItem *AddRedefineFunctionToCallList(
++  Environment *theEnv,
++  const char *name,
++  int priority,
++  RedefineCallbackFunction *func,
++  RedefineCallbackFunctionItem *head,
++  void *context)
++  {
++   RedefineCallbackFunctionItem *newPtr, *currentPtr, *lastPtr = NULL;
++   char *nameCopy;
++
++   newPtr = get_struct(theEnv,redefineCallbackFunctionItem);
++
++   nameCopy = (char *) genalloc(theEnv,strlen(name) + 1);
++   genstrcpy(nameCopy,name);
++   newPtr->name = nameCopy;
++
++   newPtr->func = func;
++   newPtr->priority = priority;
++   newPtr->context = context;
++
++   if (head == NULL)
++     {
++      newPtr->next = NULL;
++      return newPtr;
++     }
++
++   currentPtr = head;
++   while ((currentPtr != NULL) ? (priority < currentPtr->priority) : false)
++     {
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   if (lastPtr == NULL)
++     {
++      newPtr->next = head;
++      head = newPtr;
++     }
++   else
++     {
++      newPtr->next = currentPtr;
++      lastPtr->next = newPtr;
++     }
++
++   return head;
++  }
++
++/******************************************************************/
++/* RemoveRedefineFunctionFromCallList: Removes a function         */
++/*   from a construct redefinition callback function list.        */
++/******************************************************************/
++RedefineCallbackFunctionItem *RemoveRedefineFunctionFromCallList(
++  Environment *theEnv,
++  const char *name,
++  RedefineCallbackFunctionItem *head,
++  bool *found)
++  {
++   RedefineCallbackFunctionItem *currentPtr, *lastPtr;
++
++   *found = false;
++   lastPtr = NULL;
++   currentPtr = head;
++
++   while (currentPtr != NULL)
++     {
++      if (strcmp(name,currentPtr->name) == 0)
++        {
++         *found = true;
++         if (lastPtr == NULL)
++           { head = currentPtr->next; }
++         else
++           { lastPtr->next = currentPtr->next; }
++
++         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
++         rtn_struct(theEnv,redefineCallbackFunctionItem,currentPtr);
++         return head;
++        }
++
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   return head;
++  }
++
++/***************************************************************/
++/* DeallocateRedefineCallList: Removes all functions from     */
++/*   a list of construct redefinition callback functions.     */
++/***************************************************************/
++void DeallocateRedefineCallList(
++  Environment *theEnv,
++  RedefineCallbackFunctionItem *theList)
++  {
++   RedefineCallbackFunctionItem *tmpPtr, *nextPtr;
++
++   tmpPtr = theList;
++   while (tmpPtr != NULL)
++     {
++      nextPtr = tmpPtr->next;
++      genfree(theEnv,(void *) tmpPtr->name,strlen(tmpPtr->name) + 1);
++      rtn_struct(theEnv,redefineCallbackFunctionItem,tmpPtr);
++      tmpPtr = nextPtr;
++     }
++  }
++
+ /********************************************/
+ /* ExecutingConstruct: Returns true if a    */
+ /*   construct is currently being executed, */
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.h b/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.h
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.h
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/constrct.h
+@@ -85,6 +85,9 @@ typedef struct construct Construct;
+ typedef void SaveCallFunction(Environment *,Defmodule *,const char *,void *);
+ typedef struct saveCallFunctionItem SaveCallFunctionItem;
+ 
++typedef void RedefineCallbackFunction(Environment *,const char *,const char *,const char *,void *);
++typedef struct redefineCallbackFunctionItem RedefineCallbackFunctionItem;
++
+ typedef void ParserErrorFunction(Environment *,const char *,const char *,const char *,long,void *);
+ typedef bool BeforeResetFunction(Environment *);
+ 
+@@ -99,6 +102,15 @@ struct saveCallFunctionItem
+    void *context;
+   };
+ 
++struct redefineCallbackFunctionItem
++  {
++   const char *name;
++   RedefineCallbackFunction *func;
++   int priority;
++   struct redefineCallbackFunctionItem *next;
++   void *context;
++  };
++
+ struct construct
+   {
+    const char *constructName;
+@@ -124,10 +136,12 @@ struct constructData
+    bool ClearInProgress;
+    bool ResetReadyInProgress;
+    bool ResetInProgress;
++   bool RedefineInProgress;
+    short ClearReadyLocks;
+    int DanglingConstructs;
+ #if (! RUN_TIME) && (! BLOAD_ONLY)
+    SaveCallFunctionItem *ListOfSaveFunctions;
++   RedefineCallbackFunctionItem *ListOfRedefineFunctions;
+    bool PrintWhileLoading;
+    bool LoadInProgress;
+    bool WatchCompilations;
+@@ -169,6 +183,11 @@ struct constructData
+    bool                           RemoveClearReadyFunction(Environment *,const char *);
+    bool                           AddClearFunction(Environment *,const char *,VoidCallFunction *,int,void *);
+    bool                           RemoveClearFunction(Environment *,const char *);
++
++   bool                           AddRedefineCallbackFunction(Environment *,const char *,
++                                                              RedefineCallbackFunction *,int,void *);
++   bool                           RemoveRedefineCallbackFunction(Environment *,const char *);
++
+    void                           IncrementClearReadyLocks(Environment *);
+    void                           DecrementClearReadyLocks(Environment *);
+    Construct                     *AddConstruct(Environment *,const char *,const char *,
+@@ -207,7 +226,12 @@ struct constructData
+                                                             SaveCallFunction *,SaveCallFunctionItem *,void *);
+    SaveCallFunctionItem          *RemoveSaveFunctionFromCallList(Environment *,const char *,
+                                                                  SaveCallFunctionItem *,bool *);
++   RedefineCallbackFunctionItem  *AddRedefineFunctionToCallList(Environment *,const char *,int,
++                                                                RedefineCallbackFunction *,RedefineCallbackFunctionItem *,void *);
++   RedefineCallbackFunctionItem  *RemoveRedefineFunctionFromCallList(Environment *,const char *,
++                                                                     RedefineCallbackFunctionItem *,bool *);
+    void                           DeallocateSaveCallList(Environment *,SaveCallFunctionItem *);
++   void                           DeallocateRedefineCallList(Environment *,RedefineCallbackFunctionItem *);
+ 
+ #endif /* _H_constrct */
+ 
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/modulutl.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/modulutl.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/modulutl.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/modulutl.c
+@@ -848,6 +848,8 @@ CLIPSLexeme *GetConstructNameAndComment(
+    ConstructHeader *theConstruct;
+    unsigned separatorPosition;
+    Defmodule *theModule;
++   bool rv;
++   RedefineCallbackFunctionItem *redefineCallbackFunction;
+ 
+    /*==========================*/
+    /* Next token should be the */
+@@ -951,7 +953,10 @@ CLIPSLexeme *GetConstructNameAndComment(
+          if (deleteFunction != NULL)
+            {
+             RetainLexeme(theEnv,name);
+-            if ((*deleteFunction)(theConstruct,theEnv) == false)
++            ConstructData(theEnv)->RedefineInProgress = true;
++            rv = (*deleteFunction)(theConstruct,theEnv);
++            ConstructData(theEnv)->RedefineInProgress = false;
++            if (rv == false)
+               {
+                PrintErrorID(theEnv,"CSTRCPSR",4,true);
+                WriteString(theEnv,STDERR,"Cannot redefine ");
+@@ -967,6 +972,22 @@ CLIPSLexeme *GetConstructNameAndComment(
+         }
+      }
+ 
++   if (redefining)
++     {
++      /*====================================*/
++      /* Call redefine callback functions.  */
++      /*====================================*/
++
++      for (redefineCallbackFunction = ConstructData(theEnv)->ListOfRedefineFunctions;
++           redefineCallbackFunction != NULL;
++           redefineCallbackFunction = redefineCallbackFunction->next)
++        {
++         (*redefineCallbackFunction->func)(theEnv,constructName,
++                                           DefmoduleName(theModule),
++                                           name->contents,
++                                           redefineCallbackFunction->context);
++        }
++     }
+    /*=============================================*/
+    /* If compilations are being watched, indicate */
+    /* that a construct is being compiled.         */

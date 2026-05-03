@@ -1,0 +1,313 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.c
+@@ -155,6 +155,8 @@ static void DeallocateEngineData(
+ 
+    DeallocateRuleFiredCallList(theEnv,EngineData(theEnv)->ListOfAfterRuleFiresFunctions);
+    DeallocateRuleFiredCallList(theEnv,EngineData(theEnv)->ListOfBeforeRuleFiresFunctions);
++   DeallocateRunFiredCallList(theEnv,EngineData(theEnv)->ListOfBeforeRunFiresFunctions);
++   DeallocateRunFiredCallList(theEnv,EngineData(theEnv)->ListOfAfterRunFiresFunctions);
+ 
+    tmpPtr = EngineData(theEnv)->CurrentFocus;
+    while (tmpPtr != NULL)
+@@ -175,6 +177,7 @@ long long Run(
+    long long rulesFired = 0;
+    UDFValue returnValue;
+    RuleFiredFunctionItem *ruleFiresFunction;
++   RunFiredFunctionItem *runFiresFunction;
+ #if DEBUGGING_FUNCTIONS
+    unsigned long maxActivations = 0, sumActivations = 0;
+ #if DEFTEMPLATE_CONSTRUCT
+@@ -264,6 +267,16 @@ long long Run(
+    EngineData(theEnv)->unneededMarkerCompare = 0;
+ #endif
+ 
++   /*========================================*/
++   /* Execute the list of functions that are */
++   /* to be called before each run firing.   */
++   /*========================================*/
++
++   for (runFiresFunction = EngineData(theEnv)->ListOfBeforeRunFiresFunctions;
++         runFiresFunction != NULL;
++         runFiresFunction = runFiresFunction->next)
++     { (*runFiresFunction->func)(theEnv,runFiresFunction->context); }
++
+    /*=====================================================*/
+    /* Fire rules until the agenda is empty, the run limit */
+    /* has been reached, or a rule execution error occurs. */
+@@ -550,17 +563,15 @@ long long Run(
+         }
+      }
+ 
+-   /*=====================================================*/
+-   /* Make sure run functions are executed at least once. */
+-   /*=====================================================*/
++   /*========================================*/
++   /* Execute the list of functions that are */
++   /* to be called after each run firing.   */
++   /*========================================*/
+ 
+-   if (rulesFired == 0)
+-     {
+-      for (ruleFiresFunction = EngineData(theEnv)->ListOfAfterRuleFiresFunctions;
+-           ruleFiresFunction != NULL;
+-           ruleFiresFunction = ruleFiresFunction->next)
+-        { (*ruleFiresFunction->func)(theEnv,NULL,ruleFiresFunction->context); }
+-     }
++   for (runFiresFunction = EngineData(theEnv)->ListOfAfterRunFiresFunctions;
++         runFiresFunction != NULL;
++         runFiresFunction = runFiresFunction->next)
++     { (*runFiresFunction->func)(theEnv,runFiresFunction->context); }
+ 
+    /*======================================================*/
+    /* If rule execution was halted because the rule firing */
+@@ -1117,7 +1128,169 @@ RuleFiredFunctionItem *RemoveRuleFiredFunctionFromCallList(
+            { lastPtr->next = currentPtr->next; }
+ 
+          genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
+-         rtn_struct(theEnv,voidCallFunctionItem,currentPtr);
++         rtn_struct(theEnv,ruleFiredFunctionItem,currentPtr);
++         return head;
++        }
++
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   return head;
++  }
++
++/**********************************************/
++/* AddAfterRunFiresFunction: Adds a function  */
++/*   to the ListOfAfterRunFiresFunctions.     */
++/**********************************************/
++bool AddAfterRunFiresFunction(
++  Environment *theEnv,
++  const char *name,
++  RunFiredFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   EngineData(theEnv)->ListOfAfterRunFiresFunctions =
++      AddRunFiredFunctionToCallList(theEnv,name,priority,functionPtr,
++                                    EngineData(theEnv)->ListOfAfterRunFiresFunctions,
++                                    context);
++   return true;
++  }
++
++/***********************************************/
++/* AddBeforeRunFiresFunction: Adds a function  */
++/*   to the ListOfBeforeRunFiresFunctions.     */
++/***********************************************/
++bool AddBeforeRunFiresFunction(
++  Environment *theEnv,
++  const char *name,
++  RunFiredFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   EngineData(theEnv)->ListOfBeforeRunFiresFunctions =
++      AddRunFiredFunctionToCallList(theEnv,name,priority,functionPtr,
++                                    EngineData(theEnv)->ListOfBeforeRunFiresFunctions,
++                                    context);
++   return true;
++  }
++
++/****************************************************/
++/* RemoveAfterRunFiresFunction: Removes a function  */
++/*   from the ListOfAfterRunFiresFunctions.         */
++/****************************************************/
++bool RemoveAfterRunFiresFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   EngineData(theEnv)->ListOfAfterRunFiresFunctions =
++      RemoveRunFiredFunctionFromCallList(theEnv,name,
++                                         EngineData(theEnv)->ListOfAfterRunFiresFunctions,
++                                         &found);
++
++   return found;
++  }
++
++/*****************************************************/
++/* RemoveBeforeRunFiresFunction: Removes a function  */
++/*   from the ListOfBeforeRunFiresFunctions.         */
++/*****************************************************/
++bool RemoveBeforeRunFiresFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   EngineData(theEnv)->ListOfBeforeRunFiresFunctions =
++      RemoveRunFiredFunctionFromCallList(theEnv,name,
++                                         EngineData(theEnv)->ListOfBeforeRunFiresFunctions,
++                                         &found);
++
++   return found;
++  }
++
++/***************************************************/
++/* AddRunFiredFunctionToCallList: Adds a function */
++/*   to a run fired function list.                */
++/***************************************************/
++RunFiredFunctionItem *AddRunFiredFunctionToCallList(
++  Environment *theEnv,
++  const char *name,
++  int priority,
++  RunFiredFunction *func,
++  RunFiredFunctionItem *head,
++  void *context)
++  {
++   RunFiredFunctionItem *newPtr, *currentPtr, *lastPtr = NULL;
++   char *nameCopy;
++
++   newPtr = get_struct(theEnv,runFiredFunctionItem);
++
++   nameCopy = (char *) genalloc(theEnv,strlen(name) + 1);
++   genstrcpy(nameCopy,name);
++   newPtr->name = nameCopy;
++
++   newPtr->func = func;
++   newPtr->priority = priority;
++   newPtr->context = context;
++
++   if (head == NULL)
++     {
++      newPtr->next = NULL;
++      return newPtr;
++     }
++
++   currentPtr = head;
++   while ((currentPtr != NULL) ? (priority < currentPtr->priority) : false)
++     {
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   if (lastPtr == NULL)
++     {
++      newPtr->next = head;
++      head = newPtr;
++     }
++   else
++     {
++      newPtr->next = currentPtr;
++      lastPtr->next = newPtr;
++     }
++
++   return head;
++  }
++
++/***********************************************************/
++/* RemoveRunFiredFunctionFromCallList: Removes a function */
++/*   from a run fired function list.                      */
++/***********************************************************/
++RunFiredFunctionItem *RemoveRunFiredFunctionFromCallList(
++  Environment *theEnv,
++  const char *name,
++  RunFiredFunctionItem *head,
++  bool *found)
++  {
++   RunFiredFunctionItem *currentPtr, *lastPtr;
++
++   *found = false;
++   lastPtr = NULL;
++   currentPtr = head;
++
++   while (currentPtr != NULL)
++     {
++      if (strcmp(name,currentPtr->name) == 0)
++        {
++         *found = true;
++         if (lastPtr == NULL)
++           { head = currentPtr->next; }
++         else
++           { lastPtr->next = currentPtr->next; }
++
++         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
++         rtn_struct(theEnv,runFiredFunctionItem,currentPtr);
+          return head;
+         }
+ 
+@@ -1148,6 +1321,26 @@ void DeallocateRuleFiredCallList(
+      }
+   }
+ 
++/*****************************************************/
++/* DeallocateRunFiredCallList: Removes all functions */
++/*   from a list of run fired functions.             */
++/*****************************************************/
++void DeallocateRunFiredCallList(
++  Environment *theEnv,
++  RunFiredFunctionItem *theList)
++  {
++   RunFiredFunctionItem *tmpPtr, *nextPtr;
++
++   tmpPtr = theList;
++   while (tmpPtr != NULL)
++     {
++      nextPtr = tmpPtr->next;
++      genfree(theEnv,(void *) tmpPtr->name,strlen(tmpPtr->name) + 1);
++      rtn_struct(theEnv,runFiredFunctionItem,tmpPtr);
++      tmpPtr = nextPtr;
++     }
++  }
++
+ /*******************************************************/
+ /* RunCommand: H/L access routine for the run command. */
+ /*******************************************************/
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.h b/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.h
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.h
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/engine.h
+@@ -107,6 +107,18 @@ struct ruleFiredFunctionItem
+    void *context;
+   };
+ 
++typedef struct runFiredFunctionItem RunFiredFunctionItem;
++typedef void RunFiredFunction(Environment *,void *);
++
++struct runFiredFunctionItem
++  {
++   const char *name;
++   RunFiredFunction *func;
++   int priority;
++   RunFiredFunctionItem *next;
++   void *context;
++  };
++
+ #define ENGINE_DATA 18
+ 
+ struct engineData
+@@ -119,6 +131,8 @@ struct engineData
+    bool alreadyEntered;
+    RuleFiredFunctionItem *ListOfAfterRuleFiresFunctions;
+    RuleFiredFunctionItem *ListOfBeforeRuleFiresFunctions;
++   RunFiredFunctionItem *ListOfAfterRunFiresFunctions;
++   RunFiredFunctionItem *ListOfBeforeRunFiresFunctions;
+    FocalModule *CurrentFocus;
+    bool FocusChanged;
+ #if DEBUGGING_FUNCTIONS
+@@ -162,7 +176,20 @@ struct engineData
+                                                           RuleFiredFunctionItem *,void *);
+    RuleFiredFunctionItem  *RemoveRuleFiredFunctionFromCallList(Environment *,const char *,
+                                                                RuleFiredFunctionItem *,bool *);
++
++   bool                    AddAfterRunFiresFunction(Environment *,const char *,
++                                                    RunFiredFunction *,int,void *);
++   bool                    RemoveAfterRunFiresFunction(Environment *,const char *);
++   bool                    AddBeforeRunFiresFunction(Environment *,const char *,
++                                                     RunFiredFunction *,int,void *);
++   bool                    RemoveBeforeRunFiresFunction(Environment *,const char *);
++   RunFiredFunctionItem   *AddRunFiredFunctionToCallList(Environment *,const char *,int,RunFiredFunction *,
++                                                          RunFiredFunctionItem *,void *);
++   RunFiredFunctionItem   *RemoveRunFiredFunctionFromCallList(Environment *,const char *,
++                                                               RunFiredFunctionItem *,bool *);
++
+    void                    DeallocateRuleFiredCallList(Environment *,RuleFiredFunctionItem *);
++   void                    DeallocateRunFiredCallList(Environment *,RunFiredFunctionItem *);
+    void                    InitializeEngine(Environment *);
+    void                    SetBreak(Defrule *);
+    void                    Halt(Environment *);

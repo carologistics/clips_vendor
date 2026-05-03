@@ -1,0 +1,310 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltbsc.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltbsc.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltbsc.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltbsc.c
+@@ -158,7 +158,7 @@ bool Undeftemplate(
+   Environment *allEnv)
+   {
+    Environment *theEnv;
+-   
++   DeftemplateCallbackFunctionItem *deftemplateCallbackFunction;
+    if (theDeftemplate == NULL)
+      {
+       theEnv = allEnv;
+@@ -167,6 +167,19 @@ bool Undeftemplate(
+    else
+      {
+       theEnv = theDeftemplate->header.env;
++      if (!ConstructData(theEnv)->RedefineInProgress)
++        {
++         /*======================================*/
++         /* Call deftemplate retract functions.  */
++         /*======================================*/
++
++         for (deftemplateCallbackFunction = DeftemplateData(theEnv)->ListOfDeftemplateRetractFunctions;
++             deftemplateCallbackFunction != NULL;
++             deftemplateCallbackFunction = deftemplateCallbackFunction->next)
++           {
++           (*deftemplateCallbackFunction->func)(theEnv,theDeftemplate,deftemplateCallbackFunction->context);
++           }
++        }
+       return Undefconstruct(theEnv,&theDeftemplate->header,DeftemplateData(theEnv)->DeftemplateConstruct);
+      }
+   }
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.c
+@@ -161,6 +161,8 @@ static void DeallocateDeftemplateData(
+ #if BLOAD || BLOAD_AND_BSAVE
+    if (Bloaded(theEnv)) return;
+ #endif
++   DeallocateDeftemplateCallbackFunctionCallList(theEnv,DeftemplateData(theEnv)->ListOfDeftemplateAssertFunctions);
++   DeallocateDeftemplateCallbackFunctionCallList(theEnv,DeftemplateData(theEnv)->ListOfDeftemplateRetractFunctions);
+ 
+    DoForAllConstructs(theEnv,DestroyDeftemplateAction,DeftemplateData(theEnv)->DeftemplateModuleIndex,false,NULL);
+ 
+@@ -177,6 +179,185 @@ static void DeallocateDeftemplateData(
+ #endif
+   }
+ 
++/******************************************************/
++/* AddDeftemplateAssertFunction: Adds a function      */
++/*   to the ListOfDeftemplateAssertFunctions.         */
++/******************************************************/
++bool AddDeftemplateAssertFunction(
++  Environment *theEnv,
++  const char *name,
++  DeftemplateCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DeftemplateData(theEnv)->ListOfDeftemplateAssertFunctions =
++      AddDeftemplateCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                               DeftemplateData(theEnv)->ListOfDeftemplateAssertFunctions,context);
++   return true;
++  }
++
++/*********************************************************/
++/* RemoveDeftemplateAssertFunction: Removes a function    */
++/*   from the ListOfDeftemplateAssertFunctions.           */
++/*********************************************************/
++bool RemoveDeftemplateAssertFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DeftemplateData(theEnv)->ListOfDeftemplateAssertFunctions =
++      RemoveDeftemplateCallbackFunctionFromCallList(theEnv,name,
++                                                    DeftemplateData(theEnv)->ListOfDeftemplateAssertFunctions,&found);
++
++   return found;
++  }
++
++/*******************************************************/
++/* AddDeftemplateRetractFunction: Adds a function      */
++/*   to the ListOfDeftemplateRetractFunctions.         */
++/*******************************************************/
++bool AddDeftemplateRetractFunction(
++  Environment *theEnv,
++  const char *name,
++  DeftemplateCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DeftemplateData(theEnv)->ListOfDeftemplateRetractFunctions =
++      AddDeftemplateCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                               DeftemplateData(theEnv)->ListOfDeftemplateRetractFunctions,context);
++
++   return true;
++  }
++
++/**********************************************************/
++/* RemoveDeftemplateRetractFunction: Removes a function    */
++/*   from the ListOfDeftemplateRetractFunctions.           */
++/**********************************************************/
++bool RemoveDeftemplateRetractFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DeftemplateData(theEnv)->ListOfDeftemplateRetractFunctions =
++      RemoveDeftemplateCallbackFunctionFromCallList(theEnv,name,
++                                                    DeftemplateData(theEnv)->ListOfDeftemplateRetractFunctions,&found);
++
++   return found;
++  }
++
++/**************************************************************/
++/* AddDeftemplateCallbackFunctionToCallList: Adds a function  */
++/*   to a deftemplate callback function list.                 */
++/**************************************************************/
++DeftemplateCallbackFunctionItem *AddDeftemplateCallbackFunctionToCallList(
++  Environment *theEnv,
++  const char *name,
++  int priority,
++  DeftemplateCallbackFunction *func,
++  DeftemplateCallbackFunctionItem *head,
++  void *context)
++  {
++   DeftemplateCallbackFunctionItem *newPtr, *currentPtr, *lastPtr = NULL;
++   char *nameCopy;
++
++   newPtr = get_struct(theEnv,deftemplateCallbackFunctionItem);
++
++   nameCopy = (char *) genalloc(theEnv,strlen(name) + 1);
++   genstrcpy(nameCopy,name);
++   newPtr->name = nameCopy;
++
++   newPtr->func = func;
++   newPtr->priority = priority;
++   newPtr->context = context;
++
++   if (head == NULL)
++     {
++      newPtr->next = NULL;
++      return newPtr;
++     }
++
++   currentPtr = head;
++   while ((currentPtr != NULL) ? (priority < currentPtr->priority) : false)
++     {
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   if (lastPtr == NULL)
++     {
++      newPtr->next = head;
++      head = newPtr;
++     }
++   else
++     {
++      newPtr->next = currentPtr;
++      lastPtr->next = newPtr;
++     }
++
++   return head;
++  }
++
++/*****************************************************************/
++/* RemoveDeftemplateCallbackFunctionFromCallList: Removes a      */
++/*   function from a deftemplate callback function list.         */
++/*****************************************************************/
++DeftemplateCallbackFunctionItem *RemoveDeftemplateCallbackFunctionFromCallList(
++  Environment *theEnv,
++  const char *name,
++  DeftemplateCallbackFunctionItem *head,
++  bool *found)
++  {
++   DeftemplateCallbackFunctionItem *currentPtr, *lastPtr;
++
++   *found = false;
++   lastPtr = NULL;
++   currentPtr = head;
++
++   while (currentPtr != NULL)
++     {
++      if (strcmp(name,currentPtr->name) == 0)
++        {
++         *found = true;
++         if (lastPtr == NULL)
++           { head = currentPtr->next; }
++         else
++           { lastPtr->next = currentPtr->next; }
++
++         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
++         rtn_struct(theEnv,deftemplateCallbackFunctionItem,currentPtr);
++         return head;
++        }
++
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   return head;
++  }
++
++/**************************************************************/
++/* DeallocateDeftemplateCallbackFunctionCallList: Removes all */
++/*   functions from a list of deftemplate callback functions. */
++/**************************************************************/
++void DeallocateDeftemplateCallbackFunctionCallList(
++  Environment *theEnv,
++  DeftemplateCallbackFunctionItem *theList)
++  {
++   DeftemplateCallbackFunctionItem *tmpPtr, *nextPtr;
++
++   tmpPtr = theList;
++   while (tmpPtr != NULL)
++     {
++      nextPtr = tmpPtr->next;
++      genfree(theEnv,(void *) tmpPtr->name,strlen(tmpPtr->name) + 1);
++      rtn_struct(theEnv,deftemplateCallbackFunctionItem,tmpPtr);
++      tmpPtr = nextPtr;
++     }
++  }
++
+ /*****************************************************/
+ /* DestroyDeftemplateAction: Action used to remove   */
+ /*   deftemplates as a result of DestroyEnvironment. */
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.h b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.h
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.h
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltdef.h
+@@ -84,6 +84,18 @@ struct deftemplateModule
+ #include "constrnt.h"
+ #include "factbld.h"
+ 
++typedef struct deftemplateCallbackFunctionItem DeftemplateCallbackFunctionItem;
++typedef void DeftemplateCallbackFunction(Environment *,Deftemplate *,void *);
++
++struct deftemplateCallbackFunctionItem
++  {
++   const char *name;
++   DeftemplateCallbackFunction *func;
++   int priority;
++   DeftemplateCallbackFunctionItem *next;
++   void *context;
++  };
++
+ struct deftemplate
+   {
+    ConstructHeader header;
+@@ -128,6 +140,8 @@ struct deftemplateData
+ #if (! RUN_TIME) && (! BLOAD_ONLY)
+    bool DeftemplateError;
+ #endif
++   DeftemplateCallbackFunctionItem *ListOfDeftemplateAssertFunctions;
++   DeftemplateCallbackFunctionItem *ListOfDeftemplateRetractFunctions;
+   };
+ 
+ #define DeftemplateData(theEnv) ((struct deftemplateData *) GetEnvironmentData(theEnv,DEFTEMPLATE_DATA))
+@@ -150,6 +164,19 @@ struct deftemplateData
+    const char                    *DeftemplateName(Deftemplate *);
+    const char                    *DeftemplatePPForm(Deftemplate *);
+ 
++   bool                             AddDeftemplateAssertFunction(Environment *,const char *,
++                                                                 DeftemplateCallbackFunction *,int,void *);
++   bool                             RemoveDeftemplateAssertFunction(Environment *,const char *);
++   bool                             AddDeftemplateRetractFunction(Environment *,const char *,
++                                                                  DeftemplateCallbackFunction *,int,void *);
++   bool                             RemoveDeftemplateRetractFunction(Environment *,const char *);
++   DeftemplateCallbackFunctionItem *AddDeftemplateCallbackFunctionToCallList(Environment *,const char *,int,
++                                                                             DeftemplateCallbackFunction *,DeftemplateCallbackFunctionItem *,void *);
++   DeftemplateCallbackFunctionItem *RemoveDeftemplateCallbackFunctionFromCallList(Environment *,const char *,
++                                                                                  DeftemplateCallbackFunctionItem *,bool *);
++   void                             DeallocateDeftemplateCallbackFunctionCallList(Environment *,DeftemplateCallbackFunctionItem *);
++
++
+ #endif /* _H_tmpltdef */
+ 
+ 
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltpsr.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltpsr.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltpsr.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/tmpltpsr.c
+@@ -100,6 +100,7 @@ bool ParseDeftemplate(
+ #if (! RUN_TIME) && (! BLOAD_ONLY)
+    CLIPSLexeme *deftemplateName;
+    Deftemplate *newDeftemplate;
++   DeftemplateCallbackFunctionItem *deftemplateCallbackFunction;
+    struct templateSlot *slots;
+    struct token inputToken;
+ 
+@@ -222,6 +223,17 @@ bool ParseDeftemplate(
+ 
+    InstallDeftemplate(theEnv,newDeftemplate);
+ 
++   /*=====================================*/
++   /* Call deftemplate assert functions.  */
++   /*=====================================*/
++
++   for (deftemplateCallbackFunction = DeftemplateData(theEnv)->ListOfDeftemplateAssertFunctions;
++        deftemplateCallbackFunction != NULL;
++        deftemplateCallbackFunction = deftemplateCallbackFunction->next)
++     {
++      (*deftemplateCallbackFunction->func)(theEnv,newDeftemplate,deftemplateCallbackFunction->context);
++     }
++
+ #else
+ #if MAC_XCD
+ #pragma unused(theEnv)
