@@ -308,12 +308,31 @@ diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlpsr.c b/@CLIPS_SOURCE@/b
     bool globalHadWatch = false;
  #endif
 +   DefglobalCallbackFunctionItem *defglobalAssertFunction;
- 
+
     /*========================================================*/
     /* If the defglobal is already defined, then use the old  */
-@@ -453,6 +454,14 @@ static void AddDefglobal(
+@@ -437,7 +438,17 @@ static void AddDefglobal(
+    /* If the defglobal was redefined, we're done. */
     /*=============================================*/
- 
+
+-   if (newGlobal == false) return;
++   if (newGlobal == false)
++     {
++      /*=================================*/
++      /* Call defglobal assert function. */
++      /*=================================*/
++      for (defglobalAssertFunction = DefglobalData(theEnv)->ListOfDefglobalAssertFunctions;
++            defglobalAssertFunction != NULL;
++            defglobalAssertFunction = defglobalAssertFunction->next)
++      { (*defglobalAssertFunction->func)(theEnv,defglobalPtr,defglobalAssertFunction->context); }
++      return;
++     }
+
+    /*===================================*/
+    /* Copy the defglobal variable name. */
+@@ -453,6 +464,14 @@ static void AddDefglobal(
+    /*=============================================*/
+
     AddConstructToModule(&defglobalPtr->header);
 +
 +   /*=================================*/
@@ -324,5 +343,5 @@ diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlpsr.c b/@CLIPS_SOURCE@/b
 +         defglobalAssertFunction = defglobalAssertFunction->next)
 +     { (*defglobalAssertFunction->func)(theEnv,defglobalPtr,defglobalAssertFunction->context); }
    }
- 
+
  /*****************************************************************/
