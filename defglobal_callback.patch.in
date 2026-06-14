@@ -217,7 +217,7 @@ diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.c b/@CLIPS_SOURCE@/b
 +           { lastPtr->next = currentPtr->next; }
 +
 +         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
-+         rtn_struct(theEnv,voidCallFunctionItem,currentPtr);
++         rtn_struct(theEnv,defglobalCallbackFunctionItem,currentPtr);
 +         return head;
 +        }
 +
