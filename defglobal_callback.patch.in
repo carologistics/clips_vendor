@@ -1,0 +1,347 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlbsc.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlbsc.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlbsc.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlbsc.c
+@@ -189,15 +189,24 @@ bool Undefglobal(
+   Environment *allEnv)
+   {
+    Environment *theEnv;
+-   
++   DefglobalCallbackFunctionItem *defglobalRetractFunction;
++
+    if (theDefglobal == NULL)
+      {
+       theEnv = allEnv;
+       return(Undefconstruct(theEnv,NULL,DefglobalData(theEnv)->DefglobalConstruct));
+      }
+-   else 
++   else
+      {
+       theEnv = theDefglobal->header.env;
++
++      /*=================================*/
++      /* Call defglobal change function. */
++      /*=================================*/
++      for (defglobalRetractFunction = DefglobalData(theEnv)->ListOfDefglobalRetractFunctions;
++            defglobalRetractFunction != NULL;
++            defglobalRetractFunction = defglobalRetractFunction->next)
++        { (*defglobalRetractFunction->func)(theEnv,theDefglobal,defglobalRetractFunction->context); }
+       return(Undefconstruct(theEnv,&theDefglobal->header,DefglobalData(theEnv)->DefglobalConstruct));
+      }
+   }
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.c
+@@ -185,6 +185,9 @@ static void DeallocateDefglobalData(
+    if (Bloaded(theEnv)) return;
+ #endif
+ 
++   DeallocateDefglobalCallbackFunctionCallList(theEnv,DefglobalData(theEnv)->ListOfDefglobalAssertFunctions);
++   DeallocateDefglobalCallbackFunctionCallList(theEnv,DefglobalData(theEnv)->ListOfDefglobalRetractFunctions);
++
+    DoForAllConstructs(theEnv,DestroyDefglobalAction,
+                       DefglobalData(theEnv)->DefglobalModuleIndex,false,NULL);
+ 
+@@ -443,7 +446,8 @@ void QSetDefglobalValue(
+   bool resetVar)
+   {
+    CLIPSValue newValue;
+-   
++   DefglobalCallbackFunctionItem *defglobalAssertFunction;
++
+    /*====================================================*/
+    /* If the new value passed for the defglobal is NULL, */
+    /* then reset the defglobal to the initial value it   */
+@@ -507,6 +511,14 @@ void QSetDefglobalValue(
+ 
+    theGlobal->current.value = newValue.value;
+ 
++   /*=================================*/
++   /* Call defglobal assert function. */
++   /*=================================*/
++   for (defglobalAssertFunction = DefglobalData(theEnv)->ListOfDefglobalAssertFunctions;
++         defglobalAssertFunction != NULL;
++         defglobalAssertFunction = defglobalAssertFunction->next)
++     { (*defglobalAssertFunction->func)(theEnv,theGlobal,defglobalAssertFunction->context); }
++
+    /*===========================================*/
+    /* Set the variable indicating that a change */
+    /* has been made to a global variable.       */
+@@ -1038,6 +1050,184 @@ Defglobal *GetNextDefglobalInScope(
+    return NULL;
+   }
+ 
++/***********************************************/
++/* AddDefglobalAssertFunction: Adds a function */
++/*   to the ListOfDefglobalAssertFunctions.    */
++/***********************************************/
++bool AddDefglobalAssertFunction(
++  Environment *theEnv,
++  const char *name,
++  DefglobalCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DefglobalData(theEnv)->ListOfDefglobalAssertFunctions =
++      AddDefglobalCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                            DefglobalData(theEnv)->ListOfDefglobalAssertFunctions,context);
++   return true;
++  }
++
++/****************************************************/
++/* RemoveDefglobalAssertFunction: Removes a function */
++/*   from the ListOfDefglobalAssertFunctions.       */
++/****************************************************/
++bool RemoveDefglobalAssertFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DefglobalData(theEnv)->ListOfDefglobalAssertFunctions =
++      RemoveDefglobalCallbackFunctionFromCallList(theEnv,name,
++                                                 DefglobalData(theEnv)->ListOfDefglobalAssertFunctions,&found);
++
++   return found;
++  }
++
++/************************************************/
++/* AddDefglobalRetractFunction: Adds a function */
++/*   to the ListOfDefglobalRetractFunctions.    */
++/************************************************/
++bool AddDefglobalRetractFunction(
++  Environment *theEnv,
++  const char *name,
++  DefglobalCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DefglobalData(theEnv)->ListOfDefglobalRetractFunctions =
++      AddDefglobalCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                            DefglobalData(theEnv)->ListOfDefglobalRetractFunctions,context);
++   return true;
++  }
++
++/****************************************************/
++/* RemoveDefglobalRetractFunction: Removes a function */
++/*   from the ListOfDefglobalAssertFunctions.       */
++/****************************************************/
++bool RemoveDefglobalRetractFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DefglobalData(theEnv)->ListOfDefglobalRetractFunctions =
++      RemoveDefglobalCallbackFunctionFromCallList(theEnv,name,
++                                                 DefglobalData(theEnv)->ListOfDefglobalRetractFunctions,&found);
++
++   return found;
++  }
++
++/***********************************************************/
++/* AddDefglobalCallbackFunctionToCallList: Adds a function */
++/*   to a defglobal changed function list.                 */
++/***********************************************************/
++DefglobalCallbackFunctionItem *AddDefglobalCallbackFunctionToCallList(
++  Environment *theEnv,
++  const char *name,
++  int priority,
++  DefglobalCallbackFunction *func,
++  DefglobalCallbackFunctionItem *head,
++  void *context)
++  {
++   DefglobalCallbackFunctionItem *newPtr, *currentPtr, *lastPtr = NULL;
++   char *nameCopy;
++
++   newPtr = get_struct(theEnv,defglobalCallbackFunctionItem);
++
++   nameCopy = (char *) genalloc(theEnv,strlen(name) + 1);
++   genstrcpy(nameCopy,name);
++   newPtr->name = nameCopy;
++
++   newPtr->func = func;
++   newPtr->priority = priority;
++   newPtr->context = context;
++
++   if (head == NULL)
++     {
++      newPtr->next = NULL;
++      return newPtr;
++     }
++
++   currentPtr = head;
++   while ((currentPtr != NULL) ? (priority < currentPtr->priority) : false)
++     {
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   if (lastPtr == NULL)
++     {
++      newPtr->next = head;
++      head = newPtr;
++     }
++   else
++     {
++      newPtr->next = currentPtr;
++      lastPtr->next = newPtr;
++     }
++
++   return head;
++  }
++
++/*******************************************************************/
++/* RemoveDefglobalCallbackFunctionFromCallList: Removes a function */
++/*   from a defglobal changed function list.                       */
++/*******************************************************************/
++DefglobalCallbackFunctionItem *RemoveDefglobalCallbackFunctionFromCallList(
++  Environment *theEnv,
++  const char *name,
++  DefglobalCallbackFunctionItem *head,
++  bool *found)
++  {
++   DefglobalCallbackFunctionItem *currentPtr, *lastPtr;
++
++   *found = false;
++   lastPtr = NULL;
++   currentPtr = head;
++
++   while (currentPtr != NULL)
++     {
++      if (strcmp(name,currentPtr->name) == 0)
++        {
++         *found = true;
++         if (lastPtr == NULL)
++           { head = currentPtr->next; }
++         else
++           { lastPtr->next = currentPtr->next; }
++
++         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
++         rtn_struct(theEnv,defglobalCallbackFunctionItem,currentPtr);
++         return head;
++        }
++
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   return head;
++  }
++
++/************************************************************/
++/* DeallocateDefglobalCallbackFunctionCallList: Removes all */
++/*   functions from a list of defglobal changed functions.  */
++/************************************************************/
++void DeallocateDefglobalCallbackFunctionCallList(
++  Environment *theEnv,
++  DefglobalCallbackFunctionItem *theList)
++  {
++   DefglobalCallbackFunctionItem *tmpPtr, *nextPtr;
++
++   tmpPtr = theList;
++   while (tmpPtr != NULL)
++     {
++      nextPtr = tmpPtr->next;
++      genfree(theEnv,(void *) tmpPtr->name,strlen(tmpPtr->name) + 1);
++      rtn_struct(theEnv,defglobalCallbackFunctionItem,tmpPtr);
++      tmpPtr = nextPtr;
++     }
++  }
++
+ #if RUN_TIME
+ 
+ /************************************************/
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.h b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.h
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.h
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globldef.h
+@@ -75,6 +75,18 @@ typedef struct defglobal Defglobal;
+ 
+ #define DEFGLOBAL_DATA 1
+ 
++typedef struct defglobalCallbackFunctionItem DefglobalCallbackFunctionItem;
++typedef void DefglobalCallbackFunction(Environment *,Defglobal *,void *);
++
++struct defglobalCallbackFunctionItem
++  {
++   const char *name;
++   DefglobalCallbackFunction *func;
++   int priority;
++   DefglobalCallbackFunctionItem *next;
++   void *context;
++  };
++
+ struct defglobalData
+   {
+    Construct *DefglobalConstruct;
+@@ -91,6 +103,8 @@ struct defglobalData
+ #if CONSTRUCT_COMPILER && (! RUN_TIME)
+    struct CodeGeneratorItem *DefglobalCodeItem;
+ #endif
++   DefglobalCallbackFunctionItem *ListOfDefglobalAssertFunctions;
++   DefglobalCallbackFunctionItem *ListOfDefglobalRetractFunctions;
+   };
+ 
+ struct defglobal
+@@ -142,6 +156,17 @@ struct defglobalModule
+    const char                    *DefglobalModule(Defglobal *);
+    const char                    *DefglobalName(Defglobal *);
+    const char                    *DefglobalPPForm(Defglobal *);
++
++   bool                           AddDefglobalAssertFunction(Environment *,const char *,DefglobalCallbackFunction *,int,void *);
++   bool                           RemoveDefglobalAssertFunction(Environment *,const char *);
++   bool                           AddDefglobalRetractFunction(Environment *,const char *,DefglobalCallbackFunction *,int,void *);
++   bool                           RemoveDefglobalRetractFunction(Environment *,const char *);
++   DefglobalCallbackFunctionItem *AddDefglobalCallbackFunctionToCallList(Environment *,const char *,int,DefglobalCallbackFunction *,
++                                                                        DefglobalCallbackFunctionItem *,void *);
++   DefglobalCallbackFunctionItem *RemoveDefglobalCallbackFunctionFromCallList(Environment *,const char *,
++                                                                             DefglobalCallbackFunctionItem *,bool *);
++   void                           DeallocateDefglobalCallbackFunctionCallList(Environment *,DefglobalCallbackFunctionItem *);
++
+ #if RUN_TIME
+    void                           DefglobalRunTimeInitialize(Environment *);
+ #endif
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlpsr.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlpsr.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlpsr.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/globlpsr.c
+@@ -357,6 +357,7 @@ static void AddDefglobal(
+ #if DEBUGGING_FUNCTIONS
+    bool globalHadWatch = false;
+ #endif
++   DefglobalCallbackFunctionItem *defglobalAssertFunction;
+
+    /*========================================================*/
+    /* If the defglobal is already defined, then use the old  */
+@@ -437,7 +438,17 @@ static void AddDefglobal(
+    /* If the defglobal was redefined, we're done. */
+    /*=============================================*/
+
+-   if (newGlobal == false) return;
++   if (newGlobal == false)
++     {
++      /*=================================*/
++      /* Call defglobal assert function. */
++      /*=================================*/
++      for (defglobalAssertFunction = DefglobalData(theEnv)->ListOfDefglobalAssertFunctions;
++            defglobalAssertFunction != NULL;
++            defglobalAssertFunction = defglobalAssertFunction->next)
++      { (*defglobalAssertFunction->func)(theEnv,defglobalPtr,defglobalAssertFunction->context); }
++      return;
++     }
+
+    /*===================================*/
+    /* Copy the defglobal variable name. */
+@@ -453,6 +464,14 @@ static void AddDefglobal(
+    /*=============================================*/
+
+    AddConstructToModule(&defglobalPtr->header);
++
++   /*=================================*/
++   /* Call defglobal assert function. */
++   /*=================================*/
++   for (defglobalAssertFunction = DefglobalData(theEnv)->ListOfDefglobalAssertFunctions;
++         defglobalAssertFunction != NULL;
++         defglobalAssertFunction = defglobalAssertFunction->next)
++     { (*defglobalAssertFunction->func)(theEnv,defglobalPtr,defglobalAssertFunction->context); }
+   }
+
+ /*****************************************************************/

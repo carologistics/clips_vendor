@@ -17,6 +17,14 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/empty)
 # Generate entry point that is dependent on the actual CLIPS_SOURCE dir name
 set(TOP_DIR_CMAKE_FILE ${CMAKE_CURRENT_BINARY_DIR}/CMakeLists.txt)
 set(CORE_CAST_C_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/core_cast_c.patch)
+set(DEFFACTS_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/deffacts_callback.patch)
+set(DEFFUNCTION_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/deffunction_callback.patch)
+set(DEFGLOBAL_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/defglobal_callback.patch)
+set(DEFMODULE_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/defmodule_callback.patch)
+set(DEFTEMPLATE_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/deftemplate_callback.patch)
+set(REDEFINE_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/redefine_callback.patch)
+set(RULEDEF_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/ruledef_callback.patch)
+set(RUN_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/run_callback.patch)
 configure_file(
     ${CMAKE_SOURCE_DIR}/toplevel.buildsys.CMakeLists.txt.in
     ${TOP_DIR_CMAKE_FILE}
@@ -27,6 +35,54 @@ set(BRANCH 64x)
 configure_file(
     ${CMAKE_SOURCE_DIR}/core_cast_c.patch.in
     ${CORE_CAST_C_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/deffacts_callback.patch.in
+    ${DEFFACTS_CALLBACK_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/deffunction_callback.patch.in
+    ${DEFFUNCTION_CALLBACK_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/defglobal_callback.patch.in
+    ${DEFGLOBAL_CALLBACK_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/defmodule_callback.patch.in
+    ${DEFMODULE_CALLBACK_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/deftemplate_callback.patch.in
+    ${DEFTEMPLATE_CALLBACK_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/redefine_callback.patch.in
+    ${REDEFINE_CALLBACK_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/ruledef_callback.patch.in
+    ${RULEDEF_CALLBACK_PATCH_FILE}
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/run_callback.patch.in
+    ${RUN_CALLBACK_PATCH_FILE}
     @ONLY
 )
 
@@ -75,12 +131,77 @@ if(EXISTS ${CLIPS_SRC_DIR})
     OUTPUT_QUIET
     ERROR_QUIET
   )
+
   execute_process(
-    COMMAND git apply --no-index -R ${CORE_CAST_C_PATCH_FILE}
-    WORKING_DIRECTORY ${CLIPS_SRC_DIR}
-    RESULT_VARIABLE patch_result
-    OUTPUT_QUIET
-    ERROR_QUIET
+      COMMAND git apply --no-index -R ${CORE_CAST_C_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE core_cast_c_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+  
+  execute_process(
+      COMMAND git apply --no-index -R ${DEFFACTS_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE deffacts_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+  
+  execute_process(
+      COMMAND git apply --no-index -R ${DEFFUNCTION_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE deffunction_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+  
+  execute_process(
+      COMMAND git apply --no-index -R ${DEFGLOBAL_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE defglobal_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+
+  execute_process(
+      COMMAND git apply --no-index -R ${DEFMODULE_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE defmodule_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+  
+  execute_process(
+      COMMAND git apply --no-index -R ${DEFTEMPLATE_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE deftemplate_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+  
+  execute_process(
+      COMMAND git apply --no-index -R ${REDEFINE_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE redefine_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+  
+  execute_process(
+      COMMAND git apply --no-index -R ${RULEDEF_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE ruledef_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+  
+  execute_process(
+      COMMAND git apply --no-index -R ${RUN_CALLBACK_PATCH_FILE}
+      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
+      RESULT_VARIABLE run_callback_patch_result
+      OUTPUT_QUIET
+      ERROR_QUIET
   )
 endif()
 
@@ -88,7 +209,7 @@ ament_vendor(${PROJECT_NAME}
   SATISFIED FALSE
   VCS_TYPE zip
   VCS_URL https://raw.githubusercontent.com/carologistics/clips_vendor/${CLIPS_REVISION}/${CLIPS_SOURCE}.zip
-  PATCHES ${PATCH_FILE} ${CORE_CAST_C_PATCH_FILE}
+  PATCHES ${PATCH_FILE} ${CORE_CAST_C_PATCH_FILE} ${DEFFACTS_CALLBACK_PATCH_FILE} ${DEFFUNCTION_CALLBACK_PATCH_FILE} ${DEFGLOBAL_CALLBACK_PATCH_FILE} ${DEFMODULE_CALLBACK_PATCH_FILE} ${DEFTEMPLATE_CALLBACK_PATCH_FILE} ${REDEFINE_CALLBACK_PATCH_FILE} ${RULEDEF_CALLBACK_PATCH_FILE} ${RUN_CALLBACK_PATCH_FILE}
   CMAKE_ARGS
     -DBUILD_WITH_JAVA_EXAMPLES=${BUILD_WITH_JAVA_EXAMPLES}
     -DBUILD_WITH_CLIPS_EXAMPLES=${BUILD_WITH_CLIPS_EXAMPLES}

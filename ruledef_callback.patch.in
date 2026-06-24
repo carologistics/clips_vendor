@@ -1,0 +1,306 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulebsc.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulebsc.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulebsc.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulebsc.c
+@@ -299,7 +299,8 @@ bool Undefrule(
+   Environment *allEnv)
+   {
+    Environment *theEnv;
+-   
++   DefruleCallbackFunctionItem *defruleRetractFunction;
++
+    if (theDefrule == NULL)
+      {
+       theEnv = allEnv;
+@@ -308,6 +309,20 @@ bool Undefrule(
+    else
+      {
+       theEnv = theDefrule->header.env;
++      if (!ConstructData(theEnv)->RedefineInProgress)
++        {
++         /*==================================*/
++         /* Call defrule retract functions.  */
++         /*==================================*/
++
++         for (defruleRetractFunction = DefruleData(theEnv)->ListOfDefruleRetractFunctions;
++              defruleRetractFunction != NULL;
++              defruleRetractFunction = defruleRetractFunction->next)
++           {
++            (*defruleRetractFunction->func)(theEnv,theDefrule,
++                                            defruleRetractFunction->context);
++           }
++        }
+       return Undefconstruct(theEnv,&theDefrule->header,DefruleData(theEnv)->DefruleConstruct);
+      }
+   }
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.c
+@@ -170,6 +170,9 @@ static void DeallocateDefruleData(
+    Activation *theActivation, *tmpActivation;
+    struct salienceGroup *theGroup, *tmpGroup;
+ 
++   DeallocateDefruleCallbackFunctionCallList(theEnv,DefruleData(theEnv)->ListOfDefruleAssertFunctions);
++   DeallocateDefruleCallbackFunctionCallList(theEnv,DefruleData(theEnv)->ListOfDefruleRetractFunctions);
++
+ #if BLOAD || BLOAD_AND_BSAVE
+    if (Bloaded(theEnv))
+      { return; }
+@@ -556,4 +559,180 @@ const char *DefrulePPForm(
+ 
+ #endif /* DEFRULE_CONSTRUCT */
+ 
++/*********************************************/
++/* AddDefruleAssertFunction: Adds a function */
++/*   to the ListOfDefruleAssertFunctions.    */
++/*********************************************/
++bool AddDefruleAssertFunction(
++  Environment *theEnv,
++  const char *name,
++  DefruleCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DefruleData(theEnv)->ListOfDefruleAssertFunctions =
++      AddDefruleCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                           DefruleData(theEnv)->ListOfDefruleAssertFunctions,
++                                           context);
++   return true;
++  }
++
++/***************************************************/
++/* RemoveDefruleAssertFunction: Removes a function */
++/*   from the ListOfDefruleAssertFunctions.        */
++/***************************************************/
++bool RemoveDefruleAssertFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DefruleData(theEnv)->ListOfDefruleAssertFunctions =
++      RemoveDefruleCallbackFunctionFromCallList(theEnv,name,DefruleData(theEnv)->ListOfDefruleAssertFunctions,&found);
++
++   return found;
++  }
++
++/**********************************************/
++/* AddDefruleRetractFunction: Adds a function */
++/*   to the ListOfDefruleRetractFunctions.    */
++/**********************************************/
++bool AddDefruleRetractFunction(
++  Environment *theEnv,
++  const char *name,
++  DefruleCallbackFunction *functionPtr,
++  int priority,
++  void *context)
++  {
++   DefruleData(theEnv)->ListOfDefruleRetractFunctions =
++      AddDefruleCallbackFunctionToCallList(theEnv,name,priority,functionPtr,
++                                           DefruleData(theEnv)->ListOfDefruleRetractFunctions,
++                                           context);
++   return true;
++  }
++
++/****************************************************/
++/* RemoveDefruleRetractFunction: Removes a function */
++/*   from the ListOfDefruleRetractFunctions.        */
++/****************************************************/
++bool RemoveDefruleRetractFunction(
++  Environment *theEnv,
++  const char *name)
++  {
++   bool found;
++
++   DefruleData(theEnv)->ListOfDefruleRetractFunctions =
++      RemoveDefruleCallbackFunctionFromCallList(theEnv,name,DefruleData(theEnv)->ListOfDefruleRetractFunctions,&found);
++
++   return found;
++  }
++
++/*********************************************************/
++/* AddDefruleCallbackFunctionToCallList: Adds a function */
++/*   to a defrule callback function list.                */
++/*********************************************************/
++DefruleCallbackFunctionItem *AddDefruleCallbackFunctionToCallList(
++  Environment *theEnv,
++  const char *name,
++  int priority,
++  DefruleCallbackFunction *func,
++  DefruleCallbackFunctionItem *head,
++  void *context)
++  {
++   DefruleCallbackFunctionItem *newPtr, *currentPtr, *lastPtr = NULL;
++   char *nameCopy;
++
++   newPtr = get_struct(theEnv,defruleCallbackFunctionItem);
++
++   nameCopy = (char *) genalloc(theEnv,strlen(name) + 1);
++   genstrcpy(nameCopy,name);
++   newPtr->name = nameCopy;
++
++   newPtr->func = func;
++   newPtr->priority = priority;
++   newPtr->context = context;
++
++   if (head == NULL)
++     {
++      newPtr->next = NULL;
++      return newPtr;
++     }
++
++   currentPtr = head;
++   while ((currentPtr != NULL) ? (priority < currentPtr->priority) : false)
++     {
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
++
++   if (lastPtr == NULL)
++     {
++      newPtr->next = head;
++      head = newPtr;
++     }
++   else
++     {
++      newPtr->next = currentPtr;
++      lastPtr->next = newPtr;
++     }
++
++   return head;
++  }
++
++/*****************************************************************/
++/* RemoveDefruleCallbackFunctionFromCallList: Removes a function */
++/*   from a defrule callback function list.                      */
++/*****************************************************************/
++DefruleCallbackFunctionItem *RemoveDefruleCallbackFunctionFromCallList(
++  Environment *theEnv,
++  const char *name,
++  DefruleCallbackFunctionItem *head,
++  bool *found)
++  {
++   DefruleCallbackFunctionItem *currentPtr, *lastPtr;
++
++   *found = false;
++   lastPtr = NULL;
++   currentPtr = head;
++
++   while (currentPtr != NULL)
++     {
++      if (strcmp(name,currentPtr->name) == 0)
++        {
++         *found = true;
++         if (lastPtr == NULL)
++           { head = currentPtr->next; }
++         else
++           { lastPtr->next = currentPtr->next; }
++
++         genfree(theEnv,(void *) currentPtr->name,strlen(currentPtr->name) + 1);
++         rtn_struct(theEnv,defruleCallbackFunctionItem,currentPtr);
++         return head;
++        }
++
++      lastPtr = currentPtr;
++      currentPtr = currentPtr->next;
++     }
+ 
++   return head;
++  }
++
++/***********************************************************/
++/* DeallocateDefruleCallbackFunctionCallList: Removes all  */
++/*   functions from a list of defrule callback functions.  */
++/***********************************************************/
++void DeallocateDefruleCallbackFunctionCallList(
++  Environment *theEnv,
++  DefruleCallbackFunctionItem *theList)
++  {
++   DefruleCallbackFunctionItem *tmpPtr, *nextPtr;
++
++   tmpPtr = theList;
++   while (tmpPtr != NULL)
++     {
++      nextPtr = tmpPtr->next;
++      genfree(theEnv,(void *) tmpPtr->name,strlen(tmpPtr->name) + 1);
++      rtn_struct(theEnv,defruleCallbackFunctionItem,tmpPtr);
++      tmpPtr = nextPtr;
++     }
++  }
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.h b/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.h
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.h
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/ruledef.h
+@@ -123,6 +123,18 @@ struct defruleModule
+ 
+ #define DEFRULE_DATA 16
+ 
++typedef struct defruleCallbackFunctionItem DefruleCallbackFunctionItem;
++typedef void DefruleCallbackFunction(Environment *,Defrule *,void *);
++
++struct defruleCallbackFunctionItem
++  {
++   const char *name;
++   DefruleCallbackFunction *func;
++   int priority;
++   DefruleCallbackFunctionItem *next;
++   void *context;
++  };
++
+ struct defruleData
+   {
+    Construct *DefruleConstruct;
+@@ -132,6 +144,8 @@ struct defruleData
+    bool BetaMemoryResizingFlag;
+    struct joinLink *RightPrimeJoins;
+    struct joinLink *LeftPrimeJoins;
++   DefruleCallbackFunctionItem *ListOfDefruleAssertFunctions;
++   DefruleCallbackFunctionItem *ListOfDefruleRetractFunctions;
+ 
+ #if DEBUGGING_FUNCTIONS
+     bool WatchRules;
+@@ -174,6 +188,17 @@ struct defruleData
+    const char                    *DefruleName(Defrule *);
+    const char                    *DefrulePPForm(Defrule *);
+ 
++   bool                           AddDefruleAssertFunction(Environment *,const char *,
++                                                           DefruleCallbackFunction *,int,void *);
++   bool                           RemoveDefruleAssertFunction(Environment *,const char *);
++   bool                           AddDefruleRetractFunction(Environment *,const char *,
++                                                            DefruleCallbackFunction *,int,void *);
++   bool                           RemoveDefruleRetractFunction(Environment *,const char *);
++   DefruleCallbackFunctionItem   *AddDefruleCallbackFunctionToCallList(Environment *,const char *,int,DefruleCallbackFunction *,
++                                                                       DefruleCallbackFunctionItem *,void *);
++   DefruleCallbackFunctionItem   *RemoveDefruleCallbackFunctionFromCallList(Environment *,const char *,
++                                                                            DefruleCallbackFunctionItem *,bool *);
++   void                           DeallocateDefruleCallbackFunctionCallList(Environment *,DefruleCallbackFunctionItem *);
+ #endif /* _H_ruledef */
+ 
+ 
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulepsr.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulepsr.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulepsr.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/rulepsr.c
+@@ -131,6 +131,7 @@ bool ParseDefrule(
+    struct lhsParseNode *theLHS;
+    struct expr *actions;
+    struct token theToken;
++   DefruleCallbackFunctionItem *defruleCallbackFunction;
+    Defrule *topDisjunct, *tempPtr;
+    struct defruleModule *theModuleItem;
+    bool error;
+@@ -277,6 +278,17 @@ bool ParseDefrule(
+      { DefruleSetWatchFirings(topDisjunct,true); }
+ #endif
+ 
++   /*=================================*/
++   /* Call defrule assert functions.  */
++   /*=================================*/
++
++   for (defruleCallbackFunction = DefruleData(theEnv)->ListOfDefruleAssertFunctions;
++        defruleCallbackFunction != NULL;
++        defruleCallbackFunction = defruleCallbackFunction->next)
++     {
++      (*defruleCallbackFunction->func)(theEnv,topDisjunct,defruleCallbackFunction->context);
++     }
++
+    /*================================*/
+    /* Perform the incremental reset. */
+    /*================================*/
