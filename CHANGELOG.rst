@@ -2,8 +2,8 @@
 Changelog for package clips_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+6.4.4 (2026-06-25)
+------------------
 * Merge pull request `#9 <https://github.com/carologistics/clips_vendor/issues/9>`_ from carologistics/tviehmann/bump-version
   bump to latest release
 * Merge pull request `#8 <https://github.com/carologistics/clips_vendor/issues/8>`_ from carologistics/twendt/patches
