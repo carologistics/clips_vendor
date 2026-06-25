@@ -4,7 +4,7 @@ project(clips_vendor)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
-set(CLIPS_REVISION r925)
+set(CLIPS_REVISION r974)
 set(CLIPS_SOURCE clipsrules-code-${CLIPS_REVISION})
 set(CLIPS_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/src/${PROJECT_NAME})
 
@@ -16,7 +16,6 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/empty)
 
 # Generate entry point that is dependent on the actual CLIPS_SOURCE dir name
 set(TOP_DIR_CMAKE_FILE ${CMAKE_CURRENT_BINARY_DIR}/CMakeLists.txt)
-set(CORE_CAST_C_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/core_cast_c.patch)
 set(DEFFACTS_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/deffacts_callback.patch)
 set(DEFFUNCTION_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/deffunction_callback.patch)
 set(DEFGLOBAL_CALLBACK_PATCH_FILE ${CMAKE_CURRENT_BINARY_DIR}/defglobal_callback.patch)
@@ -32,11 +31,6 @@ configure_file(
 )
 
 set(BRANCH 64x)
-configure_file(
-    ${CMAKE_SOURCE_DIR}/core_cast_c.patch.in
-    ${CORE_CAST_C_PATCH_FILE}
-    @ONLY
-)
 
 configure_file(
     ${CMAKE_SOURCE_DIR}/deffacts_callback.patch.in
@@ -132,14 +126,6 @@ if(EXISTS ${CLIPS_SRC_DIR})
     ERROR_QUIET
   )
 
-  execute_process(
-      COMMAND git apply --no-index -R ${CORE_CAST_C_PATCH_FILE}
-      WORKING_DIRECTORY ${CLIPS_SRC_DIR}
-      RESULT_VARIABLE core_cast_c_patch_result
-      OUTPUT_QUIET
-      ERROR_QUIET
-  )
-  
   execute_process(
       COMMAND git apply --no-index -R ${DEFFACTS_CALLBACK_PATCH_FILE}
       WORKING_DIRECTORY ${CLIPS_SRC_DIR}
