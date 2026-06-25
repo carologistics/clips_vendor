@@ -2,6 +2,14 @@
 Changelog for package clips_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Merge pull request `#9 <https://github.com/carologistics/clips_vendor/issues/9>`_ from carologistics/tviehmann/bump-version
+  bump to latest release
+* Merge pull request `#8 <https://github.com/carologistics/clips_vendor/issues/8>`_ from carologistics/twendt/patches
+  add patch for missing callbacks
+* Contributors: Tarik Viehmann, Tim Wendt
+
 6.4.3 (2024-11-21)
 ------------------
 * CMakeLists: fetch zip from github
