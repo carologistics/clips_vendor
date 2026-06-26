@@ -1,0 +1,33 @@
+diff --git a/@CLIPS_SOURCE@/branches/@BRANCH@/core/factmngr.c b/@CLIPS_SOURCE@/branches/@BRANCH@/core/factmngr.c
+--- a/@CLIPS_SOURCE@/branches/@BRANCH@/core/factmngr.c
++++ b/@CLIPS_SOURCE@/branches/@BRANCH@/core/factmngr.c
+@@ -570,17 +570,20 @@ RetractError RetractDriver(
+       SystemError(theEnv,"FACTMNGR",5);
+       ExitRouter(theEnv,EXIT_FAILURE);
+      }
+-
+-   /*===========================================*/
+-   /* Execute the list of functions that are    */
+-   /* to be called before each fact retraction. */
+-   /*===========================================*/
+
+-   for (theRetractFunction = FactData(theEnv)->ListOfRetractFunctions;
+-        theRetractFunction != NULL;
+-        theRetractFunction = theRetractFunction->next)
++   if (!modifyOperation)
+      {
+-      (*theRetractFunction->func)(theEnv,theFact,theRetractFunction->context);
++      /*===========================================*/
++      /* Execute the list of functions that are    */
++      /* to be called before each fact retraction. */
++      /*===========================================*/
++
++      for (theRetractFunction = FactData(theEnv)->ListOfRetractFunctions;
++            theRetractFunction != NULL;
++            theRetractFunction = theRetractFunction->next)
++        {
++          (*theRetractFunction->func)(theEnv,theFact,theRetractFunction->context);
++        }
+      }
+
+    /*============================*/
